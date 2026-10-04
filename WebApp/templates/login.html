@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Iniciar sesión · Despliegues Confiar</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+<div class="auth-wrap">
+    <div class="card-soft auth-card">
+        <div class="text-center mb-4">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Confiar" height="46">
+            <h1 class="h5 fw-800 mt-3 mb-1">Sistema de Despliegues</h1>
+            <p class="text-muted small mb-0">Ingresa con tu usuario de red</p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger py-2 small d-flex gap-2 align-items-start" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i><span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form method="post" autocomplete="on">
+            <div class="mb-3">
+                <label class="form-label" for="username">Usuario</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="bi bi-person"></i></span>
+                    <input class="form-control" id="username" name="username" required autofocus autocomplete="username" placeholder="usuario.red">
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label" for="password">Contraseña</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+                    <input class="form-control" type="password" id="password" name="password" required autocomplete="current-password">
+                    <button class="btn btn-outline-secondary" type="button" id="verClave" tabindex="-1" aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button>
+                </div>
+            </div>
+            <button class="btn btn-brand w-100 py-2" type="submit"><i class="bi bi-box-arrow-in-right me-1"></i>Ingresar</button>
+        </form>
+        <p class="text-center text-muted small mt-4 mb-0">Autenticación mediante Active Directory</p>
+    </div>
+</div>
+<script>
+document.getElementById('verClave').addEventListener('click', function () {
+    const i = document.getElementById('password');
+    i.type = i.type === 'password' ? 'text' : 'password';
+    this.firstElementChild.className = i.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+});
+</script>
+</body>
+</html>

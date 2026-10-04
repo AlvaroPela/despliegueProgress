@@ -1,0 +1,21 @@
+{
+    "RutaCompilados": "C:\\tempo\\Compilados",
+    "RutaBackup": "C:\\tempo\\Backup",
+    "UsuarioSmtp": "notificacionesti@confiar.coop",
+    "ServidorSmtp": "smtp.office365.com",
+    "PuertoSmtp": 587,
+    "Destinatario": [
+        "alvaro.pelaez@confiar.coop",
+        "harison.alcaraz@confiar.coop",
+        "edwin.canga@confiar.coop",
+        "stivens.agudelo@confiar.coop",
+        "jonhy.gonzalez@confiar.coop",
+        "miguel.suarez@confiar.coop",
+        "sandra.sanchez@confiar.coop",
+        "isabel.giraldo@confiar.coop"
+    ],
+    "Auth_ClientID": "client-id-confiar",
+    "Auth_Tenant": "tenant-confiar",
+    "LdapServer": "HOSTNEPTUNO",
+    "ModoPruebas": true
+}

@@ -1,0 +1,9 @@
+[18:38:59] [INFO] === DESPLIEGUE caso T2 | usuario tester | destino DG ===
+[18:38:59] [INFO] Programas: malo.p (vNo especificada)
+[18:38:59] [INFO] Etapa 1 completada
+[18:38:59] [INFO] Compilando malo.p
+[18:38:59] [DEBUG] CMD: C:\Users\palva\AppData\Local\Temp\tmpcwa7iacc\prowin.bat -b -cpinternal undefined -cpstream undefined -p C:\Users\palva\Downloads\Despliegues\1.2\compilar.p -param C:\Users\palva\AppData\Local\Temp\tmpcwa7iacc\origen\malo.p;C:\Users\palva\AppData\Local\Temp\tmpcwa7iacc\casos\2026\Octubre\T2\DG\compilados -basekey INI -ini x.ini -db BdAgencias.db -ld datos -H 10.100.4.10 -S 2700 -U u -P ******** -db Seguimiento.db -ld seguimiento -H 10.100.4.10 -S 5150 -U u -P ******** -N tcp -Mm 2048 -T c:\tempo -Wa -wpp
+[18:38:59] [DEBUG] Salida de prowin: Acceso denegado.
+[18:38:59] [ERROR] malo.p: no se generó compilacion.log (código 0). Posible fallo de conexión a la BD, credenciales inválidas o ruta INI inaccesible.
+[18:38:59] [ERROR] Fallaron: malo.p. Revisa el log técnico.
+[18:38:59] [INFO] Correo de fallo enviado

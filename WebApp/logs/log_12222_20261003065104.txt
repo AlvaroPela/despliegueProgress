@@ -1,0 +1,9 @@
+=================================================
+    SISTEMA DE DESPLIEGUES UNIFICADO PROGRESS    
+=================================================
+👤 Usuario Windows actual: palva
+📂 Directorio base de compilación: C:\Compilacion
+-------------------------------------------------
+
+[PREPARACIÓN] Verificando credenciales de seguridad...
+❌ ERROR: Faltan archivos de seguridad SMTP en C:\Compilacion\Seguridad

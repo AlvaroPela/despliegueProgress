@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block title %}Nuevo despliegue{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Nuevo despliegue</h1>
+        <p class="page-sub">Sube los fuentes, elige el destino y el sistema compila, respalda y distribuye.</p>
+    </div>
+</div>
+
+{% if en_curso %}
+<div class="alert alert-warning d-flex gap-2 align-items-center" id="avisoEnCurso">
+    <i class="bi bi-hourglass-split fs-5"></i>
+    <div>Hay un despliegue en curso (caso <b>{{ en_curso }}</b>). Solo se permite uno a la vez; espera a que termine.</div>
+</div>
+{% endif %}
+
+<div class="row justify-content-center">
+<div class="col-xl-8 col-lg-10">
+<form id="deployForm" class="card-soft card-body-pad p-4" enctype="multipart/form-data" novalidate>
+
+    <div class="section-label mt-0"><i class="bi bi-1-circle-fill text-success"></i> Datos generales</div>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label" for="usuario">Responsable</label>
+            <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-person-check text-success"></i></span>
+                <input class="form-control fw-semibold" id="usuario" value="{{ sesion_nombre }} ({{ sesion_usuario }})" readonly>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="caso">N.º de cambio / caso</label>
+            <input class="form-control" id="caso" name="caso" placeholder="Ej: 1041710" maxlength="40" pattern="[\w\-]+" required>
+        </div>
+    </div>
+
+    <div class="section-label"><i class="bi bi-2-circle-fill text-success"></i> Carga de fuentes</div>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="dropzone" data-target="list-prin">
+                <input type="file" id="archivos_prin" name="archivos_prin" accept=".p,.w" multiple>
+                <i class="bi bi-cloud-arrow-up"></i>
+                <div class="dz-title">Programas principales</div>
+                <div class="dz-sub">Arrastra o selecciona archivos .p y .w</div>
+                <div class="file-chips" id="list-prin"></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="dropzone" data-target="list-inc">
+                <input type="file" id="archivos_inc" name="archivos_inc" accept=".i" multiple>
+                <i class="bi bi-file-earmark-code"></i>
+                <div class="dz-title">Archivos incluidos <span class="text-muted fw-normal">(opcional)</span></div>
+                <div class="dz-sub">Archivos .i de los que dependen los programas</div>
+                <div class="file-chips" id="list-inc"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-label"><i class="bi bi-3-circle-fill text-success"></i> Destino</div>
+    <select class="form-select" id="destino" name="destino" required>
+        <option value="" selected disabled>Selecciona el destino del despliegue...</option>
+        <option value="1">Dirección General (solo DG)</option>
+        <option value="2">Oficinas (solo oficinas)</option>
+        <option value="3">Todos (DG y oficinas)</option>
+        <option value="4">Marcha blanca (IPs específicas)</option>
+    </select>
+
+    <div id="mbSection" class="d-none mt-3 p-3 rounded-3 border" style="background:#f8fbf6">
+        <div class="fw-bold text-success mb-2"><i class="bi bi-sliders me-1"></i>Marcha blanca</div>
+        <label class="form-label" for="ips">IPs de los servidores (separadas por coma)</label>
+        <input class="form-control" id="ips" name="ips" placeholder="10.2.0.2, 10.3.0.2">
+        <div class="row g-2 align-items-center mt-2">
+            <div class="col-auto"><label class="form-label mb-0" for="actualizar">¿Actualizar fuentes en la red (N:\)?</label></div>
+            <div class="col-auto">
+                <select class="form-select form-select-sm" id="actualizar" name="actualizar">
+                    <option value="N">No</option><option value="S">Sí</option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-2 d-none" id="rutaSection">
+            <label class="form-label" for="ruta_mb">Ruta de red de fuentes</label>
+            <input class="form-control" id="ruta_mb" name="ruta_mb" placeholder="N:\Escala\Fuentes\Marcha">
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-brand btn-lg w-100 mt-4" id="btnSubmit" disabled>
+        <i class="bi bi-hourglass me-1"></i><span id="btnText">Verificando entorno...</span>
+    </button>
+    <div class="form-hint text-center mt-2" id="entornoAviso"></div>
+</form>
+</div>
+</div>
+
+<!-- Modal de ejecución -->
+<div class="modal fade" id="runModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:18px;overflow:hidden">
+            <div class="run-head px-4 py-3 d-flex align-items-center justify-content-between" id="runHead">
+                <div>
+                    <div class="fw-bold" id="runTitulo"><i class="bi bi-rocket-takeoff me-2"></i>Despliegue en ejecución</div>
+                    <div class="small opacity-75" id="runCaso"></div>
+                </div>
+                <div class="fw-bold fs-5 font-monospace" id="runReloj">00:00</div>
+            </div>
+            <div class="modal-body p-4" style="background:#fafbf9">
+                <div class="progress-slim mb-3"><div id="runBarra" style="width:5%"></div></div>
+                <div class="text-center mb-3">
+                    <div class="fw-bold" id="runPaso">Iniciando...</div>
+                    <div class="small text-muted" id="runDetalle">Preparando...</div>
+                </div>
+                <div class="stepper">
+                    <div class="step" id="step1"><span class="num">1</span><span class="name">Estructura y fuentes</span><i class="bi bi-check-circle-fill state"></i></div>
+                    <div class="step" id="step2"><span class="num">2</span><span class="name">Compilación en OpenEdge</span><i class="bi bi-check-circle-fill state"></i></div>
+                    <div class="step" id="step3"><span class="num">3</span><span class="name">Backup y despliegue en servidores</span><i class="bi bi-check-circle-fill state"></i></div>
+                    <div class="step" id="step4"><span class="num">4</span><span class="name">Notificación por correo</span><i class="bi bi-check-circle-fill state"></i></div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 justify-content-between d-none" id="runPie" style="background:#fafbf9">
+                <button type="button" class="btn btn-outline-secondary" id="btnVerLog"><i class="bi bi-terminal me-1"></i>Ver log técnico</button>
+                <a class="btn btn-brand" href="{{ url_for('main.historial') }}">Ir al historial</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/deploy.js') }}"></script>
+{% endblock %}

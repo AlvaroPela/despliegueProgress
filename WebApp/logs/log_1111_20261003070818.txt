@@ -1,0 +1,14 @@
+[07:08:19] =================================================
+[07:08:19]    ORQUESTADOR PYTHON DE DESPLIEGUES PROGRESS
+[07:08:19] =================================================
+[07:08:19] Caso: 1111
+[07:08:19] Usuario: alvaro.pelaez
+[07:08:19] Destino: Opción 1
+[07:08:19] Archivos detectados: 1 fuentes, 1 incluidos.
+[07:08:19] Creando estructura en C:\Compilacion\2026\Octubre\1111...
+[07:08:19] 
+[ETAPA 2] Iniciando Compilación ABL con PowerShell...
+[07:08:19]  -> Compilando .w para rama DG...
+[07:08:19]     Error del Wrapper PS: ERROR: No se pudieron leer las credenciales de BD desde AppData.
+
+[07:08:19]     [FALLO] No se generó: .w.r

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>{% block title %}Despliegues{% endblock %} · Confiar</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body class="{{ 'embed' if embed }}" data-db-faltan="{{ '1' if db_configured is defined and not db_configured and sesion_rol in ('Administrador', 'Operador') else '0' }}">
+
+{% set nav = [
+    ('main.menu', 'bi-grid-1x2', 'Inicio', ('Administrador', 'Operador', 'Consulta')),
+    ('deploy.nuevo_despliegue', 'bi-rocket-takeoff', 'Nuevo Despliegue', ('Administrador', 'Operador')),
+    ('main.historial', 'bi-clock-history', 'Historial', ('Administrador', 'Operador', 'Consulta')),
+    ('main.informes', 'bi-bar-chart-line', 'Informes', ('Administrador', 'Operador', 'Consulta')),
+    ('admin.usuarios', 'bi-people', 'Usuarios', ('Administrador',)),
+    ('admin.configuracion', 'bi-gear', 'Ajustes', ('Administrador',)),
+] %}
+
+<header class="topbar">
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="brand me-lg-4" href="{{ url_for('main.menu') }}">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Confiar">
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#menuPrincipal" aria-label="Menú">
+                <i class="bi bi-list fs-3"></i>
+            </button>
+            <div class="collapse navbar-collapse" id="menuPrincipal">
+                <ul class="navbar-nav me-auto gap-lg-1">
+                    {% for endpoint, icono, texto, roles in nav if sesion_rol in roles %}
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == endpoint }}" href="{{ url_for(endpoint) }}">
+                            <i class="bi {{ icono }}"></i>{{ texto }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="dropdown">
+                    <button class="user-chip border-0" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="avatar">{{ (sesion_nombre or '?')[0] }}</span>
+                        <span class="text-start d-none d-md-block">{{ (sesion_nombre or '')[:26] }}<span class="role-tag">{{ sesion_rol }}</span></span>
+                        <i class="bi bi-chevron-down small text-muted"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="border-radius:12px">
+                        <li><a class="dropdown-item" href="{{ url_for('admin.perfil') }}"><i class="bi bi-person-gear me-2"></i>Mi perfil</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+</header>
+
+<main class="page">
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</main>
+
+<footer class="app-footer">Sistema de Despliegues · Confiar Cooperativa Financiera · v{{ app_version }}</footer>
+<div id="toasts"></div>
+
+<script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

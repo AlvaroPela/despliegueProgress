@@ -1,0 +1,1 @@
+❌ ERROR CRÍTICO: No se pudo leer config.json o servidores.json.

@@ -1,0 +1,42 @@
+2026-10-03 18:38:34,423 ERROR app: Fallo en la inicialización
+Traceback (most recent call last):
+  File "C:\Users\palva\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\io\excel\_base.py", line 1171, in __new__
+    engine = config.get_option(f"io.excel.{ext}.writer")
+  File "C:\Users\palva\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\_config\config.py", line 187, in get_option
+    key = _get_single_key(pat)
+  File "C:\Users\palva\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\_config\config.py", line 131, in _get_single_key
+    raise OptionError(f"No such keys(s): {pat!r}")
+pandas.errors.OptionError: "No such keys(s): 'io.excel.tmp.writer'"
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\palva\Downloads\Despliegues\1.2\WebApp\app.py", line 41, in create_app
+    history.marcar_interrumpidos()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\palva\Downloads\Despliegues\1.2\WebApp\services\history.py", line 101, in marcar_interrumpidos
+    _escribir(df)
+    ~~~~~~~~~^^^^
+  File "C:\Users\palva\Downloads\Despliegues\1.2\WebApp\services\history.py", line 42, in _escribir
+    df.to_excel(tmp, index=False)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\palva\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\core\generic.py", line 2300, in to_excel
+    formatter.write(
+    ~~~~~~~~~~~~~~~^
+        excel_writer,
+        ^^^^^^^^^^^^^
+    ...<6 lines>...
+        engine_kwargs=engine_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\palva\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\io\formats\excel.py", line 1003, in write
+    writer = ExcelWriter(
+        writer,
+    ...<2 lines>...
+        engine_kwargs=engine_kwargs,
+    )
+  File "C:\Users\palva\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\io\excel\_base.py", line 1175, in __new__
+    raise ValueError(f"No engine for filetype: '{ext}'") from err
+ValueError: No engine for filetype: 'tmp'
+2026-10-03 18:38:35,207 INFO routes.auth: Login: admin.pruebas (Administrador)
