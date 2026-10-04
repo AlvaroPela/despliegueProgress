@@ -1,12 +1,12 @@
-﻿"""BitÃ¡cora de despliegues en historial.xlsx (Ãºnica capa de acceso al archivo)."""
+"""Bitácora de despliegues en historial.xlsx (única capa de acceso al archivo)."""
 import logging
-import os
 import threading
 from datetime import datetime
 
 import pandas as pd
 
 from config import HISTORIAL_PATH
+from services import excel
 
 log = logging.getLogger(__name__)
 
@@ -27,28 +27,17 @@ def clasificar(estado):
 
 
 def _leer():
-    if not os.path.exists(HISTORIAL_PATH):
-        return pd.DataFrame(columns=COLUMNAS)
-    df = pd.read_excel(HISTORIAL_PATH, dtype={"Caso": str})
-    for col in COLUMNAS:
-        if col not in df.columns:
-            df[col] = ""
-    df = df[COLUMNAS].astype(object)
-    return df.where(df.notna(), "")
+    return excel.leer(HISTORIAL_PATH, COLUMNAS, dtype={"Caso": str})
 
 
 def _escribir(df):
-    tmp = HISTORIAL_PATH + ".tmp.xlsx"
-    df.to_excel(tmp, index=False)
-    os.replace(tmp, HISTORIAL_PATH)
+    excel.escribir(df, HISTORIAL_PATH)
 
 
 def crear(caso, usuario, destino):
     with _lock:
         df = _leer()
-        nuevo_id = int(pd.to_numeric(df["ID"], errors="coerce").max() + 1) if len(df) else 1
-        if pd.isna(nuevo_id):
-            nuevo_id = 1
+        nuevo_id = excel.siguiente_id(df)
         fila = {
             "ID": nuevo_id, "Caso": str(caso), "Usuario": usuario,
             "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -88,7 +77,7 @@ def listar():
 
 
 def marcar_interrumpidos():
-    """Si el servidor se reiniciÃ³ a mitad de un despliegue, el registro quedarÃ­a 'En Proceso' para siempre."""
+    """Si el servidor se reinició a mitad de un despliegue, el registro quedaría 'En Proceso' para siempre."""
     with _lock:
         try:
             df = _leer()
@@ -97,8 +86,11 @@ def marcar_interrumpidos():
         mask = df["Estado"].astype(str).str.lower().str.contains("proceso")
         if mask.any():
             df.loc[mask, "Estado"] = "Interrumpido"
-            df.loc[mask, "Detalle"] = "El servicio se reiniciÃ³ durante la ejecuciÃ³n."
-            _escribir(df)
+            df.loc[mask, "Detalle"] = "El servicio se reinició durante la ejecución."
+            try:
+                _escribir(df)
+            except Exception:
+                log.exception("No se pudieron marcar los despliegues interrumpidos")
 
 
 def estadisticas(registros=None):

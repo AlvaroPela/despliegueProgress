@@ -1,6 +1,13 @@
-/* Utilidades comunes de la interfaz */
+/* Utilidades comunes de la interfaz (cargado en todas las páginas) */
 (function () {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const VERDE = '#4d8a2a';
+
+    /* Diálogos con los colores de la marca */
+    window.Alerta = Swal.mixin({ confirmButtonColor: VERDE, cancelButtonColor: '#6b7668', denyButtonColor: '#33601a' });
+
+    /* Datos que el servidor inyecta como <script type="application/json" id="..."> */
+    window.leerDatos = (id) => JSON.parse(document.getElementById(id)?.textContent || 'null');
 
     window.api = async function (url, opts = {}) {
         const init = { method: opts.method || 'GET', headers: { 'X-CSRF-Token': csrf }, credentials: 'same-origin' };
@@ -36,19 +43,19 @@
 
     /* ---- Visor de log técnico (reutilizado por Historial y Nuevo Despliegue) ---- */
     window.verLog = async function (id, titulo) {
-        Swal.fire({ title: 'Cargando log...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+        Alerta.fire({ title: 'Cargando log...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
         let texto;
         try { texto = await api(`/api/log/${id}`); }
-        catch (e) { return Swal.fire({ icon: 'info', title: 'Sin log', text: e.message, confirmButtonColor: '#4d8a2a' }); }
+        catch (e) { return Alerta.fire({ icon: 'info', title: 'Sin log', text: e.message }); }
         const html = escapeHtml(texto).split('\n').map((l) => {
             const cls = l.includes('[ERROR]') ? 'l-error' : l.includes('[WARN]') ? 'l-warn' : l.includes('[DEBUG]') ? 'l-debug' : '';
             return cls ? `<span class="${cls}">${l}</span>` : l;
         }).join('\n');
-        const r = await Swal.fire({
+        const r = await Alerta.fire({
             title: titulo || `Log del despliegue #${id}`, width: '70rem', showCloseButton: true,
             html: `<pre class="terminal text-start">${html}</pre>`,
             showDenyButton: true, denyButtonText: '<i class="bi bi-download"></i> Descargar',
-            confirmButtonText: '<i class="bi bi-clipboard"></i> Copiar', confirmButtonColor: '#4d8a2a',
+            confirmButtonText: '<i class="bi bi-clipboard"></i> Copiar',
             didOpen: () => { const t = Swal.getHtmlContainer().querySelector('.terminal'); t.scrollTop = t.scrollHeight; },
         });
         if (r.isConfirmed) { navigator.clipboard?.writeText(texto); toast('Log copiado al portapapeles'); }
@@ -61,12 +68,12 @@
 
     /* ---- Solicitud de credenciales de BD cuando faltan ---- */
     window.pedirCredencialesBD = async function () {
-        const r = await Swal.fire({
+        const r = await Alerta.fire({
             title: 'Credenciales de base de datos', icon: 'warning', allowOutsideClick: false, allowEscapeKey: false,
             html: '<p class="text-muted small">Se guardarán cifradas (DPAPI) en el perfil de Windows del usuario que ejecuta el servicio.</p>' +
                   '<input id="sw-u" class="swal2-input" placeholder="Usuario de BD" autocomplete="off">' +
                   '<input id="sw-p" type="password" class="swal2-input" placeholder="Contraseña de BD" autocomplete="new-password">',
-            confirmButtonText: 'Guardar', confirmButtonColor: '#4d8a2a', showCancelButton: true, cancelButtonText: 'Más tarde',
+            confirmButtonText: 'Guardar', showCancelButton: true, cancelButtonText: 'Más tarde',
             preConfirm: async () => {
                 const u = document.getElementById('sw-u').value.trim(), p = document.getElementById('sw-p').value;
                 if (!u || !p) { Swal.showValidationMessage('Ambos campos son obligatorios'); return false; }
@@ -77,7 +84,40 @@
         if (r.isConfirmed) { toast('Credenciales guardadas'); setTimeout(() => location.reload(), 700); }
     };
 
-    document.addEventListener('DOMContentLoaded', () => {
-        if (document.body.dataset.dbFaltan === '1') pedirCredencialesBD();
+    /* ---- Gráficos (Chart.js) con estilo común ---- */
+    window.COLORES = { ok: VERDE, bad: '#e05a5a', paleta: [VERDE, '#e05a5a', '#e0a21a', '#3b82c4', '#8a6bbf', '#8c9a86', '#2e9c9c'] };
+    window.estiloGraficos = function () {
+        Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+        Chart.defaults.color = '#6b7668';
+    };
+    window.graficoBarras = function (canvas, serie) {
+        estiloGraficos();
+        return new Chart(canvas, {
+            type: 'bar',
+            data: { labels: serie.labels, datasets: [
+                { label: 'Exitosos', data: serie.exito, backgroundColor: COLORES.ok, borderRadius: 6, maxBarThickness: 34 },
+                { label: 'Con fallos', data: serie.fallo, backgroundColor: COLORES.bad, borderRadius: 6, maxBarThickness: 34 },
+            ] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eef1ec' } } },
+                plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } },
+            },
+        });
+    };
+
+    /* ---- Lista de verificaciones del entorno (Inicio y Nuevo despliegue) ---- */
+    window.pintarEntorno = function (ul, checks) {
+        const iconos = { ok: 'bi-check-lg', warn: 'bi-exclamation-lg', error: 'bi-x-lg' };
+        ul.innerHTML = checks.map((c) => `<li><span class="dot ${c.nivel}"><i class="bi ${iconos[c.nivel]}"></i></span>
+            <div><b>${escapeHtml(c.label)}</b><small>${escapeHtml(c.detalle)}</small></div></li>`).join('');
+    };
+
+    /* ---- Menú lateral en móvil ---- */
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('[data-nav-toggle]')) document.body.classList.toggle('nav-open');
+        else if (e.target.closest('[data-nav-close]')) document.body.classList.remove('nav-open');
+        if (e.target.closest('[data-pedir-credenciales]')) pedirCredencialesBD();
     });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.body.classList.remove('nav-open'); });
 })();

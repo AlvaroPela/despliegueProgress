@@ -30,10 +30,15 @@ def _ruta(nombre):
 def _powershell(script, env_extra=None):
     env = dict(os.environ)
     env.update(env_extra or {})
-    return subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
-        capture_output=True, text=True, env=env, timeout=40, creationflags=_NO_WINDOW,
-    )
+    try:
+        return subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
+            capture_output=True, text=True, env=env, timeout=40, creationflags=_NO_WINDOW,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("PowerShell no respondió a tiempo (40 s).")
+    except OSError as exc:
+        raise RuntimeError(f"No se pudo ejecutar PowerShell (se requiere Windows): {exc}")
 
 
 def existe(nombre):
@@ -68,8 +73,8 @@ def cargar(nombre):
     )
     try:
         res = _powershell(script, {"SD_FILE": _ruta(nombre)})
-    except subprocess.TimeoutExpired:
-        log.error("Tiempo agotado leyendo la credencial %s", nombre)
+    except RuntimeError as exc:
+        log.error("No se pudo leer la credencial %s: %s", nombre, exc)
         return None
     if res.returncode != 0 or ":" not in res.stdout:
         log.error("No se pudo descifrar la credencial %s (¿otro usuario de Windows?): %s", nombre, res.stderr.strip())

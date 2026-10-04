@@ -8,6 +8,7 @@ from flask import Blueprint, Response, jsonify, render_template, request, sessio
 from config import LOG_DIR
 from routes.helpers import login_required, rol_requerido
 from services import credentials, deployer, history, versions
+from services.excel import ArchivoBloqueado
 
 log = logging.getLogger(__name__)
 bp = Blueprint("deploy", __name__)
@@ -48,6 +49,8 @@ def desplegar():
         return jsonify({"status": "error", "message": str(exc)}), 409
     except ValueError as exc:
         return jsonify({"status": "error", "message": str(exc)}), 400
+    except ArchivoBloqueado as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 503
     except Exception as exc:
         log.exception("No se pudo iniciar el despliegue")
         return jsonify({"status": "error", "message": f"No se pudo iniciar: {exc}"}), 500

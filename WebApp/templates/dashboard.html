@@ -1,47 +1,47 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import kpi, estado, vacio %}
 {% block title %}Inicio{% endblock %}
+{% block page_title %}Hola, {{ (sesion_nombre or '').split(' ')[0] }}{% endblock %}
+{% block page_sub %}Resumen de la actividad de despliegues de Progress.{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Hola, {{ (sesion_nombre or '').split(' ')[0] }} 👋</h1>
-        <p class="page-sub">Resumen de la actividad de despliegues de Progress.</p>
-    </div>
-    {% if sesion_rol in ('Administrador', 'Operador') %}
-    <a href="{{ url_for('deploy.nuevo_despliegue') }}" class="btn btn-brand btn-lg"><i class="bi bi-rocket-takeoff me-2"></i>Nuevo despliegue</a>
-    {% endif %}
+<div class="row g-3 mb-3">
+    <div class="col-6 col-xl-3">{{ kpi('bi-collection', 'info', stats.total, 'Despliegues totales') }}</div>
+    <div class="col-6 col-xl-3">{{ kpi('bi-check2-circle', 'ok', stats.exitosos, 'Exitosos · ' ~ stats.tasa_exito ~ '%') }}</div>
+    <div class="col-6 col-xl-3">{{ kpi('bi-x-octagon', 'bad', stats.fallidos, 'Con fallos o interrumpidos') }}</div>
+    <div class="col-6 col-xl-3">{{ kpi('bi-hourglass-split', 'warn', stats.en_proceso, 'En proceso') }}</div>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3"><div class="card-soft kpi"><div class="kpi-icon info"><i class="bi bi-collection"></i></div><div><div class="kpi-value">{{ stats.total }}</div><div class="kpi-label">Despliegues totales</div></div></div></div>
-    <div class="col-6 col-lg-3"><div class="card-soft kpi"><div class="kpi-icon ok"><i class="bi bi-check2-circle"></i></div><div><div class="kpi-value">{{ stats.exitosos }}</div><div class="kpi-label">Exitosos · {{ stats.tasa_exito }}%</div></div></div></div>
-    <div class="col-6 col-lg-3"><div class="card-soft kpi"><div class="kpi-icon bad"><i class="bi bi-x-octagon"></i></div><div><div class="kpi-value">{{ stats.fallidos }}</div><div class="kpi-label">Con fallos</div></div></div></div>
-    <div class="col-6 col-lg-3"><div class="card-soft kpi"><div class="kpi-icon warn"><i class="bi bi-hourglass-split"></i></div><div><div class="kpi-value">{{ stats.en_proceso }}</div><div class="kpi-label">En proceso</div></div></div></div>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-lg-8">
-        <div class="card-soft h-100">
-            <div class="card-head"><h2><i class="bi bi-graph-up me-2 text-success"></i>Actividad de los últimos 14 días</h2></div>
-            <div class="card-body-pad"><div class="chart-box"><canvas id="grafico"></canvas></div></div>
-        </div>
-    </div>
-    <div class="col-lg-4">
+<div class="row g-3 mb-3">
+    <div class="col-xl-8">
         <div class="card-soft h-100">
             <div class="card-head">
-                <h2><i class="bi bi-heart-pulse me-2 text-success"></i>Estado del entorno</h2>
-                <button class="btn btn-sm btn-soft" id="btnRecargarEntorno" title="Volver a verificar"><i class="bi bi-arrow-repeat"></i></button>
+                <h2><i class="bi bi-graph-up"></i>Actividad</h2>
+                <span class="card-sub">Últimos 14 días</span>
             </div>
-            <ul class="check-list" id="listaEntorno"><li class="text-muted"><span class="spinner-border spinner-border-sm"></span> Verificando...</li></ul>
+            <div class="card-body-pad"><div class="chart-box"><canvas id="grafico" aria-label="Despliegues por día"></canvas></div></div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card-soft h-100">
+            <div class="card-head">
+                <h2><i class="bi bi-heart-pulse"></i>Estado del entorno</h2>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="check-summary" id="resumenEntorno"></div>
+                    <button class="btn-icon" id="btnRecargarEntorno" title="Volver a verificar" aria-label="Volver a verificar"><i class="bi bi-arrow-repeat"></i></button>
+                </div>
+            </div>
+            <ul class="check-list" id="listaEntorno"></ul>
         </div>
     </div>
 </div>
 
 <div class="card-soft">
     <div class="card-head">
-        <h2><i class="bi bi-clock-history me-2 text-success"></i>Últimos despliegues</h2>
-        <a href="{{ url_for('main.historial') }}" class="btn btn-sm btn-soft">Ver todo</a>
+        <h2><i class="bi bi-clock-history"></i>Últimos despliegues</h2>
+        <a href="{{ url_for('main.historial') }}" class="btn btn-sm btn-soft">Ver historial <i class="bi bi-arrow-right ms-1"></i></a>
     </div>
+    {% if ultimos %}
     <div class="table-responsive">
         <table class="table table-modern">
             <thead><tr><th>Caso</th><th>Usuario</th><th>Fecha</th><th>Destino</th><th>Estado</th><th>Detalle</th></tr></thead>
@@ -50,46 +50,23 @@
                 <tr>
                     <td class="fw-bold">{{ r.Caso }}</td>
                     <td>{{ r.Usuario }}</td>
-                    <td class="text-muted">{{ r.Fecha }}</td>
-                    <td>{{ r.Destino }}</td>
-                    <td><span class="badge-status {{ r.Clase }}">{{ r.Estado }}</span></td>
+                    <td class="text-muted text-nowrap num">{{ r.Fecha }}</td>
+                    <td>{{ r.Destino or '—' }}</td>
+                    <td>{{ estado(r) }}</td>
                     <td><div class="cell-detail" title="{{ r.Detalle }}">{{ r.Detalle or '—' }}</div></td>
                 </tr>
-            {% else %}
-                <tr><td colspan="6"><div class="empty-state"><i class="bi bi-inbox"></i>Aún no hay despliegues registrados.</div></td></tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
+    {% else %}
+        {{ vacio('bi-inbox', 'Aún no hay despliegues registrados', 'Cuando ejecutes el primero aparecerá aquí.') }}
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script type="application/json" id="datos-serie">{{ serie | tojson }}</script>
 <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.js') }}"></script>
-<script>
-const serie = {{ serie | tojson }};
-new Chart(document.getElementById('grafico'), {
-    type: 'bar',
-    data: { labels: serie.labels, datasets: [
-        { label: 'Exitosos', data: serie.exito, backgroundColor: '#4d8a2a', borderRadius: 6 },
-        { label: 'Con fallos', data: serie.fallo, backgroundColor: '#e05a5a', borderRadius: 6 },
-    ]},
-    options: { responsive: true, maintainAspectRatio: false,
-        scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } },
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } },
-});
-
-async function cargarEntorno() {
-    const ul = document.getElementById('listaEntorno');
-    ul.innerHTML = '<li class="text-muted"><span class="spinner-border spinner-border-sm"></span> Verificando...</li>';
-    try {
-        const data = await api('/api/entorno');
-        const iconos = { ok: 'bi-check-lg', warn: 'bi-exclamation-lg', error: 'bi-x-lg' };
-        ul.innerHTML = data.checks.map(c => `<li><span class="dot ${c.nivel}"><i class="bi ${iconos[c.nivel]}"></i></span>
-            <div><b>${escapeHtml(c.label)}</b><small>${escapeHtml(c.detalle)}</small></div></li>`).join('');
-    } catch (e) { ul.innerHTML = `<li class="text-danger">${escapeHtml(e.message)}</li>`; }
-}
-document.getElementById('btnRecargarEntorno').addEventListener('click', cargarEntorno);
-cargarEntorno();
-</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

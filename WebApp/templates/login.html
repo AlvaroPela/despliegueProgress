@@ -10,46 +10,64 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body>
-<div class="auth-wrap">
-    <div class="card-soft auth-card">
-        <div class="text-center mb-4">
-            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Confiar" height="46">
-            <h1 class="h5 fw-800 mt-3 mb-1">Sistema de Despliegues</h1>
-            <p class="text-muted small mb-0">Ingresa con tu usuario de red</p>
+<div class="auth">
+    <section class="auth-hero">
+        <div><span class="logo-pill"><img src="{{ url_for('static', filename='img/logo.png') }}" alt="Confiar"></span></div>
+        <div>
+            <h1>Despliegues de Progress, sin pasos manuales.</h1>
+            <p>Compila, respalda y distribuye los programas a Dirección General y oficinas desde un solo lugar.</p>
+            <ul class="auth-feats">
+                <li><i class="bi bi-cpu"></i>Compilación automática en OpenEdge</li>
+                <li><i class="bi bi-shield-check"></i>Backup previo de cada versión en producción</li>
+                <li><i class="bi bi-envelope-check"></i>Notificación y bitácora de cada ejecución</li>
+            </ul>
         </div>
+        <small class="opacity-75">Confiar Cooperativa Financiera</small>
+    </section>
 
-        {% if error %}
-        <div class="alert alert-danger py-2 small d-flex gap-2 align-items-start" role="alert">
-            <i class="bi bi-exclamation-triangle-fill"></i><span>{{ error }}</span>
+    <section class="auth-form">
+        <div class="auth-card">
+            <img class="d-lg-none mb-4" src="{{ url_for('static', filename='img/logo.png') }}" alt="Confiar" height="40">
+            <h2 class="mb-1">Iniciar sesión</h2>
+            <p class="text-muted mb-4">Ingresa con tu usuario de red.</p>
+
+            {% if error %}
+            <div class="banner bad py-2" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i><div class="banner-body">{{ error }}</div>
+            </div>
+            {% endif %}
+
+            <form method="post" autocomplete="on">
+                <div class="mb-3">
+                    <label class="form-label" for="username">Usuario</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input class="form-control" id="username" name="username" required autofocus autocomplete="username" placeholder="usuario.red" value="{{ request.form.get('username', '') }}">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label" for="password">Contraseña</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input class="form-control" type="password" id="password" name="password" required autocomplete="current-password">
+                        <button class="btn btn-ghost" type="button" id="verClave" aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button>
+                    </div>
+                </div>
+                <button class="btn btn-brand btn-lg w-100" type="submit" id="btnIngresar"><i class="bi bi-box-arrow-in-right me-1"></i>Ingresar</button>
+            </form>
+            <p class="text-center text-muted small mt-4 mb-0"><i class="bi bi-microsoft me-1"></i>Autenticación mediante Active Directory</p>
         </div>
-        {% endif %}
-
-        <form method="post" autocomplete="on">
-            <div class="mb-3">
-                <label class="form-label" for="username">Usuario</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-white"><i class="bi bi-person"></i></span>
-                    <input class="form-control" id="username" name="username" required autofocus autocomplete="username" placeholder="usuario.red">
-                </div>
-            </div>
-            <div class="mb-4">
-                <label class="form-label" for="password">Contraseña</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
-                    <input class="form-control" type="password" id="password" name="password" required autocomplete="current-password">
-                    <button class="btn btn-outline-secondary" type="button" id="verClave" tabindex="-1" aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button>
-                </div>
-            </div>
-            <button class="btn btn-brand w-100 py-2" type="submit"><i class="bi bi-box-arrow-in-right me-1"></i>Ingresar</button>
-        </form>
-        <p class="text-center text-muted small mt-4 mb-0">Autenticación mediante Active Directory</p>
-    </div>
+    </section>
 </div>
 <script>
 document.getElementById('verClave').addEventListener('click', function () {
     const i = document.getElementById('password');
     i.type = i.type === 'password' ? 'text' : 'password';
     this.firstElementChild.className = i.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+});
+document.querySelector('form').addEventListener('submit', function () {
+    const b = document.getElementById('btnIngresar');
+    b.disabled = true; b.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Validando...';
 });
 </script>
 </body>

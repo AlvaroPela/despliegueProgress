@@ -1,10 +1,10 @@
-﻿"""GestiÃ³n de usuarios autorizados (usuarios.xlsx)."""
-import os
+"""Gestión de usuarios autorizados (usuarios.xlsx)."""
 import threading
 
 import pandas as pd
 
 from config import USUARIOS_PATH
+from services import excel
 
 COLUMNAS = ["ID", "Usuario", "Nombre", "Rol", "Estado"]
 ROLES = ("Administrador", "Operador", "Consulta")
@@ -12,19 +12,11 @@ _lock = threading.RLock()
 
 
 def _leer():
-    if not os.path.exists(USUARIOS_PATH):
-        return pd.DataFrame(columns=COLUMNAS)
-    df = pd.read_excel(USUARIOS_PATH)
-    for col in COLUMNAS:
-        if col not in df.columns:
-            df[col] = ""
-    return df[COLUMNAS].astype(object).where(lambda d: d.notna(), "")
+    return excel.leer(USUARIOS_PATH, COLUMNAS)
 
 
 def _escribir(df):
-    tmp = USUARIOS_PATH + ".tmp.xlsx"
-    df.to_excel(tmp, index=False)
-    os.replace(tmp, USUARIOS_PATH)
+    excel.escribir(df, USUARIOS_PATH)
 
 
 def listar():
@@ -40,12 +32,12 @@ def agregar(usuario, nombre, rol="Operador", estado="Activo"):
     if not usuario:
         raise ValueError("El usuario es obligatorio.")
     if rol not in ROLES:
-        raise ValueError("Rol no vÃ¡lido.")
+        raise ValueError("Rol no válido.")
     with _lock:
         df = _leer()
         if (df["Usuario"].astype(str).str.lower() == usuario.lower()).any():
             raise ValueError("El usuario ya existe.")
-        nuevo_id = int(pd.to_numeric(df["ID"], errors="coerce").max() + 1) if len(df) else 1
+        nuevo_id = excel.siguiente_id(df)
         fila = {"ID": nuevo_id, "Usuario": usuario, "Nombre": (nombre or "").strip() or usuario,
                 "Rol": rol, "Estado": estado}
         _escribir(pd.concat([df, pd.DataFrame([fila])], ignore_index=True))
@@ -59,7 +51,7 @@ def actualizar(user_id, rol=None, estado=None):
             raise ValueError("Usuario no encontrado.")
         if rol:
             if rol not in ROLES:
-                raise ValueError("Rol no vÃ¡lido.")
+                raise ValueError("Rol no válido.")
             df.loc[idx, "Rol"] = rol
         if estado:
             df.loc[idx, "Estado"] = estado

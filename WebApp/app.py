@@ -6,9 +6,11 @@ from datetime import timedelta
 from logging.handlers import RotatingFileHandler
 
 from flask import Flask, jsonify, render_template, request, session
+from werkzeug.exceptions import HTTPException
 
 import config
 from services import history
+from services.excel import ArchivoBloqueado
 
 APP_VERSION = "2.0"
 
@@ -50,7 +52,8 @@ def create_app():
     def _preparar_sesion():
         if "embed" in request.args:  # ?embed=1 oculta la barra superior (iframe de ServiceDesk Plus)
             session["embed"] = request.args.get("embed") == "1"
-        if request.method in ("POST", "PUT", "DELETE", "PATCH") and "usuario" in session:
+        if (request.method in ("POST", "PUT", "DELETE", "PATCH") and "usuario" in session
+                and request.endpoint != "auth.login"):  # el formulario de login no lleva token
             esperado = session.get("csrf")
             if not esperado or request.headers.get("X-CSRF-Token") != esperado:
                 return jsonify({"status": "error", "message": "Token de seguridad inválido. Recarga la página."}), 400
@@ -68,17 +71,38 @@ def create_app():
             "app_version": APP_VERSION,
         }
 
+    def _es_api():
+        return request.path.startswith("/api/") or request.method != "GET"
+
     @app.errorhandler(404)
     def _no_encontrado(_):
-        if request.path.startswith("/api/"):
+        if _es_api():
             return jsonify({"status": "error", "message": "Recurso no encontrado."}), 404
         return render_template("error.html", titulo="Página no encontrada",
                                mensaje="La dirección solicitada no existe."), 404
 
+    @app.errorhandler(HTTPException)
+    def _error_http(exc):
+        # 400, 405, 413... no son errores internos: se devuelven con su propio código.
+        if exc.code == 413:
+            mensaje = "Los archivos superan el tamaño máximo permitido (300 MB)."
+        else:
+            mensaje = exc.description or exc.name
+        if _es_api():
+            return jsonify({"status": "error", "message": mensaje}), exc.code
+        return render_template("error.html", titulo=exc.name, mensaje=mensaje), exc.code
+
+    @app.errorhandler(ArchivoBloqueado)
+    def _archivo_bloqueado(exc):
+        logging.getLogger(__name__).warning("%s", exc)
+        if _es_api():
+            return jsonify({"status": "error", "message": str(exc)}), 503
+        return render_template("error.html", titulo="Archivo en uso", mensaje=str(exc)), 503
+
     @app.errorhandler(Exception)
     def _error_interno(exc):
         logging.getLogger(__name__).exception("Error no controlado en %s", request.path)
-        if request.path.startswith("/api/") or request.method != "GET":
+        if _es_api():
             return jsonify({"status": "error", "message": f"Error interno: {exc}"}), 500
         return render_template("error.html", titulo="Error interno",
                                mensaje="Ocurrió un error inesperado. Revisa logs/app.log."), 500

@@ -1,101 +1,126 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import seccion %}
 {% block title %}Nuevo despliegue{% endblock %}
+{% block page_sub %}Sube los fuentes, elige el destino y el sistema compila, respalda y distribuye.{% endblock %}
+
+{% set destinos = [
+    ('1', 'bi-building', 'Dirección General', 'Solo servidores DG'),
+    ('2', 'bi-shop', 'Oficinas', 'Solo servidores de oficinas'),
+    ('3', 'bi-diagram-3', 'Todos', 'DG y oficinas'),
+    ('4', 'bi-bullseye', 'Marcha blanca', 'IPs específicas'),
+] %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Nuevo despliegue</h1>
-        <p class="page-sub">Sube los fuentes, elige el destino y el sistema compila, respalda y distribuye.</p>
-    </div>
-</div>
-
 {% if en_curso %}
-<div class="alert alert-warning d-flex gap-2 align-items-center" id="avisoEnCurso">
-    <i class="bi bi-hourglass-split fs-5"></i>
-    <div>Hay un despliegue en curso (caso <b>{{ en_curso }}</b>). Solo se permite uno a la vez; espera a que termine.</div>
+<div class="banner warn" id="avisoEnCurso">
+    <i class="bi bi-hourglass-split"></i>
+    <div class="banner-body">Hay un despliegue en curso (caso <b>{{ en_curso }}</b>). Solo se permite uno a la vez; espera a que termine.</div>
 </div>
 {% endif %}
 
-<div class="row justify-content-center">
-<div class="col-xl-8 col-lg-10">
-<form id="deployForm" class="card-soft card-body-pad p-4" enctype="multipart/form-data" novalidate>
-
-    <div class="section-label mt-0"><i class="bi bi-1-circle-fill text-success"></i> Datos generales</div>
-    <div class="row g-3">
-        <div class="col-md-6">
-            <label class="form-label" for="usuario">Responsable</label>
-            <div class="input-group">
-                <span class="input-group-text bg-white"><i class="bi bi-person-check text-success"></i></span>
-                <input class="form-control fw-semibold" id="usuario" value="{{ sesion_nombre }} ({{ sesion_usuario }})" readonly>
+<form id="deployForm" enctype="multipart/form-data" novalidate>
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="card-soft">
+            <div class="form-section">
+                {{ seccion(1, 'Datos generales', 'Quién solicita y el número de cambio asociado.') }}
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="usuario">Responsable</label>
+                        <input class="form-control fw-semibold" id="usuario" value="{{ sesion_nombre }} ({{ sesion_usuario }})" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="caso">N.º de cambio / caso</label>
+                        <input class="form-control" id="caso" name="caso" placeholder="Ej: 1041710" maxlength="40" pattern="[\w\-]+" required autocomplete="off">
+                        <div class="form-hint">Letras, números, guion y guion bajo.</div>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="col-md-6">
-            <label class="form-label" for="caso">N.º de cambio / caso</label>
-            <input class="form-control" id="caso" name="caso" placeholder="Ej: 1041710" maxlength="40" pattern="[\w\-]+" required>
+
+            <div class="form-section">
+                {{ seccion(2, 'Carga de fuentes', 'Programas a compilar y los includes de los que dependen.') }}
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="dropzone" data-target="list-prin">
+                            <input type="file" id="archivos_prin" name="archivos_prin" accept=".p,.w" multiple aria-label="Programas principales">
+                            <i class="bi bi-cloud-arrow-up"></i>
+                            <div class="dz-title">Programas principales</div>
+                            <div class="dz-sub">Arrastra o selecciona archivos .p y .w</div>
+                            <div class="file-chips" id="list-prin"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="dropzone" data-target="list-inc">
+                            <input type="file" id="archivos_inc" name="archivos_inc" accept=".i" multiple aria-label="Archivos incluidos">
+                            <i class="bi bi-file-earmark-code"></i>
+                            <div class="dz-title">Incluidos <span class="text-muted fw-normal">(opcional)</span></div>
+                            <div class="dz-sub">Archivos .i</div>
+                            <div class="file-chips" id="list-inc"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                {{ seccion(3, 'Destino', 'A qué servidores se copiarán los compilados.') }}
+                <div class="dest-grid" role="radiogroup" aria-label="Destino del despliegue">
+                    {% for valor, icono, titulo, sub in destinos %}
+                    <div class="dest-option">
+                        <input type="radio" name="destino" id="destino{{ valor }}" value="{{ valor }}">
+                        <label for="destino{{ valor }}"><i class="bi {{ icono }}"></i><span><b>{{ titulo }}</b><small>{{ sub }}</small></span></label>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div id="mbSection" class="sub-panel d-none">
+                    <label class="form-label" for="ips">IPs de los servidores (separadas por coma)</label>
+                    <input class="form-control mono" id="ips" name="ips" placeholder="10.2.0.2, 10.3.0.2">
+                    <div class="form-check form-switch mt-3">
+                        <input class="form-check-input" type="checkbox" id="actualizarChk">
+                        <label class="form-check-label" for="actualizarChk">Actualizar también los fuentes en la red (N:\)</label>
+                    </div>
+                    <input type="hidden" id="actualizar" name="actualizar" value="N">
+                    <div class="mt-2 d-none" id="rutaSection">
+                        <label class="form-label" for="ruta_mb">Ruta de red de fuentes</label>
+                        <input class="form-control mono" id="ruta_mb" name="ruta_mb" placeholder="N:\Escala\Fuentes\Marcha">
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="section-label"><i class="bi bi-2-circle-fill text-success"></i> Carga de fuentes</div>
-    <div class="row g-3">
-        <div class="col-md-6">
-            <div class="dropzone" data-target="list-prin">
-                <input type="file" id="archivos_prin" name="archivos_prin" accept=".p,.w" multiple>
-                <i class="bi bi-cloud-arrow-up"></i>
-                <div class="dz-title">Programas principales</div>
-                <div class="dz-sub">Arrastra o selecciona archivos .p y .w</div>
-                <div class="file-chips" id="list-prin"></div>
+    <div class="col-xl-4">
+        <div class="summary d-flex flex-column gap-3">
+            <div class="card-soft">
+                <div class="card-head"><h2><i class="bi bi-card-checklist"></i>Resumen</h2></div>
+                <div class="card-body-pad pt-2 pb-2">
+                    <dl>
+                        <div class="row-s"><dt>Caso</dt><dd id="resCaso">—</dd></div>
+                        <div class="row-s"><dt>Programas</dt><dd id="resPrin">0</dd></div>
+                        <div class="row-s"><dt>Incluidos</dt><dd id="resInc">0</dd></div>
+                        <div class="row-s"><dt>Destino</dt><dd id="resDestino">—</dd></div>
+                    </dl>
+                </div>
+                <div class="card-foot">
+                    <button type="submit" class="btn btn-brand btn-lg w-100" id="btnSubmit" disabled>
+                        <i class="bi bi-hourglass me-1"></i><span id="btnText">Verificando entorno...</span>
+                    </button>
+                    <div class="form-hint text-center mt-2" id="entornoAviso"></div>
+                </div>
             </div>
-        </div>
-        <div class="col-md-6">
-            <div class="dropzone" data-target="list-inc">
-                <input type="file" id="archivos_inc" name="archivos_inc" accept=".i" multiple>
-                <i class="bi bi-file-earmark-code"></i>
-                <div class="dz-title">Archivos incluidos <span class="text-muted fw-normal">(opcional)</span></div>
-                <div class="dz-sub">Archivos .i de los que dependen los programas</div>
-                <div class="file-chips" id="list-inc"></div>
+            <div class="card-soft">
+                <div class="card-head"><h2><i class="bi bi-heart-pulse"></i>Entorno</h2></div>
+                <ul class="check-list" id="listaEntorno"><li class="text-muted"><span class="spinner-border spinner-border-sm"></span> Verificando...</li></ul>
             </div>
         </div>
     </div>
-
-    <div class="section-label"><i class="bi bi-3-circle-fill text-success"></i> Destino</div>
-    <select class="form-select" id="destino" name="destino" required>
-        <option value="" selected disabled>Selecciona el destino del despliegue...</option>
-        <option value="1">Dirección General (solo DG)</option>
-        <option value="2">Oficinas (solo oficinas)</option>
-        <option value="3">Todos (DG y oficinas)</option>
-        <option value="4">Marcha blanca (IPs específicas)</option>
-    </select>
-
-    <div id="mbSection" class="d-none mt-3 p-3 rounded-3 border" style="background:#f8fbf6">
-        <div class="fw-bold text-success mb-2"><i class="bi bi-sliders me-1"></i>Marcha blanca</div>
-        <label class="form-label" for="ips">IPs de los servidores (separadas por coma)</label>
-        <input class="form-control" id="ips" name="ips" placeholder="10.2.0.2, 10.3.0.2">
-        <div class="row g-2 align-items-center mt-2">
-            <div class="col-auto"><label class="form-label mb-0" for="actualizar">¿Actualizar fuentes en la red (N:\)?</label></div>
-            <div class="col-auto">
-                <select class="form-select form-select-sm" id="actualizar" name="actualizar">
-                    <option value="N">No</option><option value="S">Sí</option>
-                </select>
-            </div>
-        </div>
-        <div class="mt-2 d-none" id="rutaSection">
-            <label class="form-label" for="ruta_mb">Ruta de red de fuentes</label>
-            <input class="form-control" id="ruta_mb" name="ruta_mb" placeholder="N:\Escala\Fuentes\Marcha">
-        </div>
-    </div>
-
-    <button type="submit" class="btn btn-brand btn-lg w-100 mt-4" id="btnSubmit" disabled>
-        <i class="bi bi-hourglass me-1"></i><span id="btnText">Verificando entorno...</span>
-    </button>
-    <div class="form-hint text-center mt-2" id="entornoAviso"></div>
+</div>
 </form>
-</div>
-</div>
 
 <!-- Modal de ejecución -->
-<div class="modal fade" id="runModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+<div class="modal fade" id="runModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="runTitulo">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius:18px;overflow:hidden">
+        <div class="modal-content">
             <div class="run-head px-4 py-3 d-flex align-items-center justify-content-between" id="runHead">
                 <div>
                     <div class="fw-bold" id="runTitulo"><i class="bi bi-rocket-takeoff me-2"></i>Despliegue en ejecución</div>
@@ -103,7 +128,7 @@
                 </div>
                 <div class="fw-bold fs-5 font-monospace" id="runReloj">00:00</div>
             </div>
-            <div class="modal-body p-4" style="background:#fafbf9">
+            <div class="modal-body p-4" style="background:var(--surface-2)">
                 <div class="progress-slim mb-3"><div id="runBarra" style="width:5%"></div></div>
                 <div class="text-center mb-3">
                     <div class="fw-bold" id="runPaso">Iniciando...</div>
@@ -116,8 +141,8 @@
                     <div class="step" id="step4"><span class="num">4</span><span class="name">Notificación por correo</span><i class="bi bi-check-circle-fill state"></i></div>
                 </div>
             </div>
-            <div class="modal-footer border-0 justify-content-between d-none" id="runPie" style="background:#fafbf9">
-                <button type="button" class="btn btn-outline-secondary" id="btnVerLog"><i class="bi bi-terminal me-1"></i>Ver log técnico</button>
+            <div class="modal-footer border-0 justify-content-between d-none" id="runPie" style="background:var(--surface-2)">
+                <button type="button" class="btn btn-ghost" id="btnVerLog"><i class="bi bi-terminal me-1"></i>Ver log técnico</button>
                 <a class="btn btn-brand" href="{{ url_for('main.historial') }}">Ir al historial</a>
             </div>
         </div>
@@ -125,6 +150,4 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/deploy.js') }}"></script>
-{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/deploy.js') }}"></script>{% endblock %}

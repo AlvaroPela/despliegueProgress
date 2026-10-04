@@ -1,0 +1,33 @@
+{# Componentes reutilizables de la interfaz #}
+
+{% macro kpi(icono, tono, valor, etiqueta) %}
+<div class="card-soft kpi">
+    <div class="kpi-icon {{ tono }}"><i class="bi {{ icono }}"></i></div>
+    <div><div class="kpi-value">{{ valor }}</div><div class="kpi-label">{{ etiqueta }}</div></div>
+</div>
+{% endmacro %}
+
+{% macro estado(r) %}<span class="badge-status {{ r.Clase }}">{{ r.Estado }}</span>{% endmacro %}
+
+{% macro vacio(icono, titulo, texto='') %}
+<div class="empty-state">
+    <i class="bi {{ icono }}"></i>
+    <div class="empty-title">{{ titulo }}</div>
+    {% if texto %}<div class="small">{{ texto }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro campo(id, etiqueta, valor, ayuda='', tipo='text', col='col-md-6', mono=False) %}
+<div class="{{ col }}">
+    <label class="form-label" for="{{ id }}">{{ etiqueta }}</label>
+    <input class="form-control{{ ' mono' if mono }}" type="{{ tipo }}" id="{{ id }}" name="{{ id }}" value="{{ valor }}">
+    {% if ayuda %}<div class="form-hint">{{ ayuda }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro seccion(n, titulo, texto='') %}
+<div class="form-section-head">
+    <span class="n">{{ n }}</span>
+    <div><h3>{{ titulo }}</h3>{% if texto %}<p>{{ texto }}</p>{% endif %}</div>
+</div>
+{% endmacro %}

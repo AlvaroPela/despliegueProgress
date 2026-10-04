@@ -4,10 +4,24 @@
     const form = $('deployForm');
     let regId = null, timer = null, runModal = null;
 
+    const destinoSel = () => form.querySelector('input[name=destino]:checked');
+    const destinoTxt = () => destinoSel()?.nextElementSibling.querySelector('b').textContent || '';
+
+    /* ---------- Resumen en vivo ---------- */
+    function resumen() {
+        $('resCaso').textContent = $('caso').value.trim() || '—';
+        $('resPrin').textContent = $('archivos_prin').files.length;
+        $('resInc').textContent = $('archivos_inc').files.length;
+        $('resDestino').textContent = destinoTxt() || '—';
+    }
+    form.addEventListener('input', resumen);
+    form.addEventListener('change', resumen);
+
     /* ---------- Zonas de carga ---------- */
     function chips(input) {
-        const cont = $(input.closest('.dropzone').dataset.target);
-        cont.innerHTML = [...input.files].map((f) => `<span class="file-chip">${escapeHtml(f.name)}</span>`).join('');
+        const zona = input.closest('.dropzone');
+        $(zona.dataset.target).innerHTML = [...input.files].map((f) => `<span class="file-chip">${escapeHtml(f.name)}</span>`).join('');
+        zona.classList.toggle('tiene', input.files.length > 0);
     }
     document.querySelectorAll('.dropzone input[type=file]').forEach((input) => {
         const zona = input.closest('.dropzone');
@@ -17,26 +31,34 @@
     });
 
     /* ---------- Marcha blanca ---------- */
-    $('destino').addEventListener('change', (e) => $('mbSection').classList.toggle('d-none', e.target.value !== '4'));
-    $('actualizar').addEventListener('change', (e) => $('rutaSection').classList.toggle('d-none', e.target.value !== 'S'));
+    form.querySelectorAll('input[name=destino]').forEach((r) =>
+        r.addEventListener('change', () => $('mbSection').classList.toggle('d-none', destinoSel()?.value !== '4')));
+    $('actualizarChk').addEventListener('change', (e) => {
+        $('actualizar').value = e.target.checked ? 'S' : 'N';
+        $('rutaSection').classList.toggle('d-none', !e.target.checked);
+    });
 
     /* ---------- Estado del entorno ---------- */
     async function validarEntorno() {
         const btn = $('btnSubmit');
         try {
             const data = await api('/api/entorno');
-            const errores = data.checks.filter((c) => c.nivel === 'error');
+            pintarEntorno($('listaEntorno'), data.checks);
             if (data.listo) {
                 btn.disabled = !!document.getElementById('avisoEnCurso');
                 $('btnText').textContent = 'Iniciar despliegue';
                 btn.firstElementChild.className = 'bi bi-rocket-takeoff me-1';
-                const avisos = data.checks.filter((c) => c.nivel === 'warn').map((c) => c.label);
-                $('entornoAviso').textContent = avisos.length ? `Advertencias: ${avisos.join(' · ')}` : '';
+                const avisos = data.checks.filter((c) => c.nivel === 'warn').length;
+                $('entornoAviso').textContent = avisos ? `${avisos} advertencia(s) en el entorno; puedes continuar.` : 'Entorno listo.';
             } else {
+                btn.firstElementChild.className = 'bi bi-exclamation-octagon me-1';
                 $('btnText').textContent = 'Entorno incompleto';
-                $('entornoAviso').innerHTML = errores.map((c) => `<span class="text-danger">• ${escapeHtml(c.label)}: ${escapeHtml(c.detalle)}</span>`).join('<br>');
+                $('entornoAviso').innerHTML = '<span class="text-danger">Corrige los puntos marcados en rojo para continuar.</span>';
             }
-        } catch (e) { $('btnText').textContent = 'No se pudo verificar el entorno'; }
+        } catch (e) {
+            $('btnText').textContent = 'No se pudo verificar el entorno';
+            $('listaEntorno').innerHTML = `<li class="text-danger">${escapeHtml(e.message)}</li>`;
+        }
     }
     validarEntorno();
 
@@ -47,8 +69,8 @@
         const prin = $('archivos_prin').files;
         if (!/^[\w\-]{1,40}$/.test(caso)) return toast('Ingresa un número de caso válido (letras, números, guion).', 'warn');
         if (!prin.length) return toast('Debes seleccionar al menos un programa .p o .w', 'warn');
-        if (!$('destino').value) return toast('Selecciona el destino del despliegue.', 'warn');
-        if ($('destino').value === '4' && !$('ips').value.trim()) return toast('Indica las IPs de la marcha blanca.', 'warn');
+        if (!destinoSel()) return toast('Selecciona el destino del despliegue.', 'warn');
+        if (destinoSel().value === '4' && !$('ips').value.trim()) return toast('Indica las IPs de la marcha blanca.', 'warn');
 
         // 1) Versiones detectadas en los programas
         const fd = new FormData();
@@ -59,11 +81,10 @@
 
         const filas = versiones.map((v) => `<tr><td class="text-start fw-semibold">${escapeHtml(v.archivo)}</td>
             <td class="text-end"><span class="badge text-bg-success">v${escapeHtml(v.version)}</span></td></tr>`).join('');
-        const destinoTxt = $('destino').selectedOptions[0].textContent;
-        const r = await Swal.fire({
-            title: 'Confirma el despliegue', icon: 'question', confirmButtonColor: '#4d8a2a', showCancelButton: true,
+        const r = await Alerta.fire({
+            title: 'Confirma el despliegue', icon: 'question', showCancelButton: true,
             confirmButtonText: '<i class="bi bi-rocket-takeoff"></i> Desplegar', cancelButtonText: 'Cancelar', width: '34rem',
-            html: `<div class="text-start small mb-2">Caso <b>${escapeHtml(caso)}</b> → <b>${escapeHtml(destinoTxt)}</b></div>
+            html: `<div class="text-start small mb-2">Caso <b>${escapeHtml(caso)}</b> → <b>${escapeHtml(destinoTxt())}</b></div>
                    <div style="max-height:260px;overflow:auto" class="border rounded-3"><table class="table table-sm mb-0">
                    <thead><tr><th class="text-start">Programa</th><th class="text-end">Versión detectada</th></tr></thead><tbody>${filas}</tbody></table></div>
                    <div class="small text-muted mt-2">Revisa que las versiones correspondan a lo que vas a publicar.</div>`,

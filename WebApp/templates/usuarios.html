@@ -1,89 +1,76 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import vacio %}
 {% block title %}Usuarios{% endblock %}
+{% block page_title %}Usuarios autorizados{% endblock %}
+{% block page_sub %}Define quién puede operar el sistema. Se aplica de forma estricta al activar «Restringir acceso» en Ajustes.{% endblock %}
+{% block page_actions %}
+<button class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#modalUsuario"><i class="bi bi-person-plus me-1"></i>Agregar usuario</button>
+{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Usuarios autorizados</h1>
-        <p class="page-sub">Define quién puede operar el sistema. Se aplica de forma estricta al activar «Restringir acceso» en Ajustes.</p>
-    </div>
-    <button class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#modalUsuario"><i class="bi bi-person-plus me-1"></i>Agregar usuario</button>
-</div>
-
-<div class="card-soft">
-    <div class="table-responsive">
-        <table class="table table-modern">
-            <thead><tr><th>Usuario de red</th><th>Nombre</th><th>Rol</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
-            <tbody>
-            {% for u in lista %}
-                <tr>
-                    <td class="fw-bold">{{ u.Usuario }}</td>
-                    <td>{{ u.Nombre }}</td>
-                    <td>
-                        <select class="form-select form-select-sm w-auto" data-accion="rol" data-id="{{ u.ID }}">
-                            {% for r in roles %}<option {{ 'selected' if r == u.Rol }}>{{ r }}</option>{% endfor %}
-                        </select>
-                    </td>
-                    <td>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" data-accion="estado" data-id="{{ u.ID }}" {{ 'checked' if u.Estado == 'Activo' }}>
-                            <label class="form-check-label small">{{ u.Estado }}</label>
-                        </div>
-                    </td>
-                    <td class="text-end"><button class="btn btn-sm btn-outline-danger" data-accion="eliminar" data-id="{{ u.ID }}" data-nombre="{{ u.Usuario }}"><i class="bi bi-trash"></i></button></td>
-                </tr>
+<div class="row g-3">
+    <div class="col-xl-9">
+        <div class="card-soft">
+            {% if lista %}
+            <div class="table-responsive">
+                <table class="table table-modern">
+                    <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+                    <tbody>
+                    {% for u in lista %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="avatar">{{ (u.Nombre or u.Usuario or '?')[0] }}</span>
+                                    <div><div class="fw-semibold">{{ u.Nombre }}</div><div class="small text-muted">{{ u.Usuario }}</div></div>
+                                </div>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm w-auto" data-accion="rol" data-id="{{ u.ID }}" aria-label="Rol de {{ u.Usuario }}">
+                                    {% for r in roles %}<option {{ 'selected' if r == u.Rol }}>{{ r }}</option>{% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="estado{{ u.ID }}" data-accion="estado" data-id="{{ u.ID }}" {{ 'checked' if u.Estado == 'Activo' }}>
+                                    <label class="form-check-label small" for="estado{{ u.ID }}">{{ u.Estado }}</label>
+                                </div>
+                            </td>
+                            <td class="text-end"><button class="btn btn-sm btn-ghost text-danger" data-accion="eliminar" data-id="{{ u.ID }}" data-nombre="{{ u.Usuario }}" aria-label="Eliminar {{ u.Usuario }}"><i class="bi bi-trash"></i></button></td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}
-                <tr><td colspan="5"><div class="empty-state"><i class="bi bi-people"></i>Aún no hay usuarios registrados.</div></td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
+                {{ vacio('bi-people', 'Aún no hay usuarios registrados', 'Agrega a tu equipo para poder restringir el acceso.') }}
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-xl-3">
+        <div class="card-soft card-body-pad small">
+            <h2 class="h6 fw-bold mb-3"><i class="bi bi-info-circle text-brand me-1"></i>Roles</h2>
+            <p class="mb-2"><span class="badge-role">Administrador</span><br>Todo: despliegues, usuarios y ajustes.</p>
+            <p class="mb-2"><span class="badge-role">Operador</span><br>Despliega y consulta el historial.</p>
+            <p class="mb-0"><span class="badge-role">Consulta</span><br>Solo lectura de historial e informes.</p>
+        </div>
     </div>
 </div>
 
-<div class="modal fade" id="modalUsuario" tabindex="-1">
+<div class="modal fade" id="modalUsuario" tabindex="-1" aria-labelledby="tituloModalUsuario">
     <div class="modal-dialog modal-dialog-centered">
-        <form class="modal-content border-0 shadow" style="border-radius:16px" id="formUsuario">
-            <div class="modal-header border-0"><h5 class="modal-title fw-bold">Agregar usuario</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <form class="modal-content" id="formUsuario">
+            <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold" id="tituloModalUsuario">Agregar usuario</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
             <div class="modal-body">
-                <div class="mb-3"><label class="form-label">Usuario de red</label><input class="form-control" name="usuario" required placeholder="nombre.apellido"></div>
-                <div class="mb-3"><label class="form-label">Nombre completo</label><input class="form-control" name="nombre" placeholder="Opcional"></div>
-                <div><label class="form-label">Rol</label>
-                    <select class="form-select" name="rol">{% for r in roles %}<option {{ 'selected' if r == 'Operador' }}>{{ r }}</option>{% endfor %}</select>
-                    <div class="form-hint"><b>Administrador:</b> todo · <b>Operador:</b> despliega y consulta · <b>Consulta:</b> solo lectura</div>
+                <div class="mb-3"><label class="form-label" for="nuevoUsuario">Usuario de red</label><input class="form-control" id="nuevoUsuario" name="usuario" required placeholder="nombre.apellido"></div>
+                <div class="mb-3"><label class="form-label" for="nuevoNombre">Nombre completo</label><input class="form-control" id="nuevoNombre" name="nombre" placeholder="Opcional"></div>
+                <div><label class="form-label" for="nuevoRol">Rol</label>
+                    <select class="form-select" id="nuevoRol" name="rol">{% for r in roles %}<option {{ 'selected' if r == 'Operador' }}>{{ r }}</option>{% endfor %}</select>
                 </div>
             </div>
-            <div class="modal-footer border-0"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-brand" type="submit">Guardar</button></div>
+            <div class="modal-footer border-0"><button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-brand" type="submit">Guardar</button></div>
         </form>
     </div>
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-const recargar = () => setTimeout(() => location.reload(), 500);
-
-document.getElementById('formUsuario').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const datos = Object.fromEntries(new FormData(e.target));
-    try { await api('/api/usuarios', { method: 'POST', json: datos }); toast('Usuario agregado'); recargar(); }
-    catch (err) { toast(err.message, 'error'); }
-});
-
-document.addEventListener('change', async (e) => {
-    const el = e.target.closest('[data-accion]'); if (!el) return;
-    const id = el.dataset.id;
-    const cuerpo = el.dataset.accion === 'rol' ? { rol: el.value } : { estado: el.checked ? 'Activo' : 'Inactivo' };
-    try { await api(`/api/usuarios/${id}`, { method: 'PUT', json: cuerpo }); toast('Cambios guardados'); if (el.dataset.accion === 'estado') recargar(); }
-    catch (err) { toast(err.message, 'error'); }
-});
-
-document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('[data-accion="eliminar"]'); if (!btn) return;
-    const r = await Swal.fire({ title: `¿Eliminar a ${btn.dataset.nombre}?`, icon: 'warning', showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar', confirmButtonColor: '#c62828', cancelButtonText: 'Cancelar' });
-    if (!r.isConfirmed) return;
-    try { await api(`/api/usuarios/${btn.dataset.id}`, { method: 'DELETE' }); toast('Usuario eliminado'); recargar(); }
-    catch (err) { toast(err.message, 'error'); }
-});
-</script>
-{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/usuarios.js') }}"></script>{% endblock %}

@@ -11,61 +11,106 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     {% block head %}{% endblock %}
 </head>
-<body class="{{ 'embed' if embed }}" data-db-faltan="{{ '1' if db_configured is defined and not db_configured and sesion_rol in ('Administrador', 'Operador') else '0' }}">
+{% set puede_desplegar = sesion_rol in ('Administrador', 'Operador') %}
+{% set faltan_credenciales = db_configured is defined and not db_configured and puede_desplegar %}
+<body class="{{ 'embed' if embed }}">
 
-{% set nav = [
-    ('main.menu', 'bi-grid-1x2', 'Inicio', ('Administrador', 'Operador', 'Consulta')),
-    ('deploy.nuevo_despliegue', 'bi-rocket-takeoff', 'Nuevo Despliegue', ('Administrador', 'Operador')),
-    ('main.historial', 'bi-clock-history', 'Historial', ('Administrador', 'Operador', 'Consulta')),
-    ('main.informes', 'bi-bar-chart-line', 'Informes', ('Administrador', 'Operador', 'Consulta')),
-    ('admin.usuarios', 'bi-people', 'Usuarios', ('Administrador',)),
-    ('admin.configuracion', 'bi-gear', 'Ajustes', ('Administrador',)),
+{# (endpoint, icono, texto, roles) agrupados por sección #}
+{% set todos = ('Administrador', 'Operador', 'Consulta') %}
+{% set menu = [
+    ('Operación', [
+        ('main.menu', 'bi-grid-1x2', 'Inicio', todos),
+        ('deploy.nuevo_despliegue', 'bi-rocket-takeoff', 'Nuevo despliegue', ('Administrador', 'Operador')),
+        ('main.historial', 'bi-clock-history', 'Historial', todos),
+        ('main.informes', 'bi-bar-chart-line', 'Informes', todos),
+    ]),
+    ('Administración', [
+        ('admin.usuarios', 'bi-people', 'Usuarios', ('Administrador',)),
+        ('admin.configuracion', 'bi-sliders2', 'Ajustes', ('Administrador',)),
+    ]),
 ] %}
 
-<header class="topbar">
-    <nav class="navbar navbar-expand-lg">
-        <div class="container">
-            <a class="brand me-lg-4" href="{{ url_for('main.menu') }}">
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Confiar">
+<div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
+        <a class="sidebar-brand" href="{{ url_for('main.menu') }}">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Confiar">
+            <span class="app-name">Sistema de<br>Despliegues</span>
+        </a>
+        <nav class="sidebar-nav">
+            {% for seccion, enlaces in menu %}
+                {% for endpoint, icono, texto, roles in enlaces if sesion_rol in roles %}
+                    {% if loop.first %}<div class="nav-section">{{ seccion }}</div>{% endif %}
+                    <a class="side-link {{ 'active' if request.endpoint == endpoint }}" href="{{ url_for(endpoint) }}"
+                       {{ 'aria-current=page' if request.endpoint == endpoint }}>
+                        <i class="bi {{ icono }}"></i>{{ texto }}
+                    </a>
+                {% endfor %}
+            {% endfor %}
+            <div class="nav-section">Cuenta</div>
+            <a class="side-link {{ 'active' if request.endpoint == 'admin.perfil' }}" href="{{ url_for('admin.perfil') }}">
+                <i class="bi bi-person-gear"></i>Mi perfil
             </a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#menuPrincipal" aria-label="Menú">
-                <i class="bi bi-list fs-3"></i>
+        </nav>
+        <div class="sidebar-foot">Confiar Cooperativa Financiera<br>Versión {{ app_version }}</div>
+    </aside>
+    <div class="sidebar-backdrop" data-nav-close></div>
+
+    <div class="main">
+        <header class="topbar">
+            <button class="btn-icon d-lg-none" type="button" data-nav-toggle aria-label="Abrir menú" aria-controls="sidebar">
+                <i class="bi bi-list fs-5"></i>
             </button>
-            <div class="collapse navbar-collapse" id="menuPrincipal">
-                <ul class="navbar-nav me-auto gap-lg-1">
-                    {% for endpoint, icono, texto, roles in nav if sesion_rol in roles %}
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == endpoint }}" href="{{ url_for(endpoint) }}">
-                            <i class="bi {{ icono }}"></i>{{ texto }}
-                        </a>
-                    </li>
-                    {% endfor %}
-                </ul>
+            <div class="crumbs"><span class="d-none d-sm-inline">Despliegues</span><i class="bi bi-chevron-right small d-none d-sm-inline"></i><b>{{ self.title() }}</b></div>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                {% if puede_desplegar and request.endpoint != 'deploy.nuevo_despliegue' %}
+                <a class="btn btn-brand btn-sm d-none d-md-inline-flex align-items-center" href="{{ url_for('deploy.nuevo_despliegue') }}">
+                    <i class="bi bi-plus-lg me-1"></i>Nuevo despliegue
+                </a>
+                {% endif %}
                 <div class="dropdown">
-                    <button class="user-chip border-0" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="user-chip" data-bs-toggle="dropdown" aria-expanded="false">
                         <span class="avatar">{{ (sesion_nombre or '?')[0] }}</span>
                         <span class="text-start d-none d-md-block">{{ (sesion_nombre or '')[:26] }}<span class="role-tag">{{ sesion_rol }}</span></span>
                         <i class="bi bi-chevron-down small text-muted"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="border-radius:12px">
+                    <ul class="dropdown-menu dropdown-menu-end mt-2">
+                        <li class="px-3 py-2 small text-muted">Conectado como <b class="text-body">{{ sesion_usuario }}</b></li>
                         <li><a class="dropdown-item" href="{{ url_for('admin.perfil') }}"><i class="bi bi-person-gear me-2"></i>Mi perfil</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión</a></li>
                     </ul>
                 </div>
             </div>
-        </div>
-    </nav>
-</header>
+        </header>
 
-<main class="page">
-    <div class="container">
-        {% block content %}{% endblock %}
+        <main class="content">
+            {% if faltan_credenciales %}
+            <div class="banner warn" role="alert">
+                <i class="bi bi-database-exclamation"></i>
+                <div class="banner-body"><b>Faltan las credenciales de la base de datos.</b> Sin ellas no es posible compilar ni desplegar.</div>
+                <button class="btn btn-sm btn-ghost" type="button" data-pedir-credenciales>Configurar ahora</button>
+            </div>
+            {% endif %}
+
+            {# Bloques de cabecera: se definen aquí y se pintan abajo solo si la página los rellena #}
+            {% if false %}{% block page_sub %}{% endblock %}{% block page_actions %}{% endblock %}{% endif %}
+            {% block header %}
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">{% block page_title %}{{ self.title() }}{% endblock %}</h1>
+                    {% if self.page_sub() | trim %}<p class="page-sub">{{ self.page_sub() }}</p>{% endif %}
+                </div>
+                {% if self.page_actions() | trim %}<div class="page-actions">{{ self.page_actions() }}</div>{% endif %}
+            </div>
+            {% endblock %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="app-footer">Sistema de Despliegues Progress · Confiar Cooperativa Financiera</footer>
     </div>
-</main>
-
-<footer class="app-footer">Sistema de Despliegues · Confiar Cooperativa Financiera · v{{ app_version }}</footer>
-<div id="toasts"></div>
+</div>
+<div id="toasts" aria-live="polite"></div>
 
 <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/sweetalert2/sweetalert2.all.min.js') }}"></script>

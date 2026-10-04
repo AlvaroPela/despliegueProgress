@@ -229,6 +229,15 @@ def iniciar(usuario, caso, destino, ips, actualizar, ruta_mb, archivos_prin, arc
         raise
 
 
+def _registrar(run, **campos):
+    """Actualiza el historial sin interrumpir el hilo si el Excel está bloqueado."""
+    try:
+        history.actualizar(run.id, **campos)
+    except Exception as exc:
+        log.exception("No se pudo actualizar el historial del despliegue %s", run.id)
+        run.log(f"No se pudo actualizar historial.xlsx: {exc}", "WARN")
+
+
 def _ejecutar(run):
     try:
         run.log(f"=== DESPLIEGUE caso {run.caso} | usuario {run.usuario} | destino {run.tipo} ===")
@@ -241,19 +250,19 @@ def _ejecutar(run):
         _etapa4(run, estado)
         run.log("PROCESO DE DESPLIEGUE FINALIZADO")
         detalle = " | ".join(run.advertencias)[:600]
-        history.actualizar(run.id, Estado=estado, Detalle=detalle, Duracion=run.duracion())
+        _registrar(run, Estado=estado, Detalle=detalle, Duracion=run.duracion())
         run.progreso(5, "Despliegue completado" + (" con advertencias" if run.advertencias else ""),
                      "warning" if run.advertencias else "success")
     except DeployError as exc:
         run.log(str(exc), "ERROR")
         _notificar_fallo(run, exc.estado, str(exc))
-        history.actualizar(run.id, Estado=exc.estado, Detalle=str(exc)[:600], Duracion=run.duracion())
+        _registrar(run, Estado=exc.estado, Detalle=str(exc)[:600], Duracion=run.duracion())
         run.progreso(run.paso or 1, str(exc), "error")
     except Exception as exc:  # error inesperado: nunca dejar el registro "En Proceso"
         run.log("Error inesperado:\n" + traceback.format_exc(), "ERROR")
         log.exception("Fallo inesperado en despliegue %s", run.id)
         _notificar_fallo(run, "Error", str(exc))
-        history.actualizar(run.id, Estado="Error", Detalle=f"Error inesperado: {exc}"[:600], Duracion=run.duracion())
+        _registrar(run, Estado="Error", Detalle=f"Error inesperado: {exc}"[:600], Duracion=run.duracion())
         run.progreso(run.paso or 1, f"Error inesperado: {exc}", "error")
     finally:
         _caso_activo["caso"] = None

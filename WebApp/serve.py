@@ -1,4 +1,4 @@
-﻿"""Servidor de producción (Waitress). Lo inicia iniciar.bat."""
+"""Servidor de producción (Waitress). Lo inicia iniciar.bat."""
 from waitress import serve
 
 from app import app

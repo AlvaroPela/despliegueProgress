@@ -1,82 +1,63 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import kpi, vacio %}
 {% block title %}Informes{% endblock %}
+{% block page_sub %}Indicadores de desempeño de los despliegues.{% endblock %}
+{% block page_actions %}
+<a class="btn btn-ghost" href="{{ url_for('main.exportar_csv') }}"><i class="bi bi-filetype-csv me-1"></i>Exportar historial (CSV)</a>
+{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Informes</h1>
-        <p class="page-sub">Indicadores de desempeño de los despliegues.</p>
-    </div>
-    <a class="btn btn-soft" href="{{ url_for('main.exportar_csv') }}"><i class="bi bi-filetype-csv me-1"></i>Exportar historial (CSV)</a>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3"><div class="card-soft kpi"><div class="kpi-icon info"><i class="bi bi-collection"></i></div><div><div class="kpi-value">{{ stats.total }}</div><div class="kpi-label">Despliegues</div></div></div></div>
-    <div class="col-6 col-lg-3"><div class="card-soft kpi"><div class="kpi-icon ok"><i class="bi bi-patch-check"></i></div><div><div class="kpi-value">{{ stats.tasa_exito }}%</div><div class="kpi-label">Tasa de éxito</div></div></div></div>
-    <div class="col-6 col-lg-3"><div class="card-soft kpi"><div class="kpi-icon bad"><i class="bi bi-x-octagon"></i></div><div><div class="kpi-value">{{ stats.fallidos }}</div><div class="kpi-label">Con fallos</div></div></div></div>
-    <div class="col-6 col-lg-3"><div class="card-soft kpi"><div class="kpi-icon warn"><i class="bi bi-stopwatch"></i></div><div><div class="kpi-value">{{ promedio }}</div><div class="kpi-label">Duración promedio (mm:ss)</div></div></div></div>
+<div class="row g-3 mb-3">
+    <div class="col-6 col-xl-3">{{ kpi('bi-collection', 'info', stats.total, 'Despliegues') }}</div>
+    <div class="col-6 col-xl-3">{{ kpi('bi-patch-check', 'ok', stats.tasa_exito ~ '%', 'Tasa de éxito') }}</div>
+    <div class="col-6 col-xl-3">{{ kpi('bi-x-octagon', 'bad', stats.fallidos, 'Con fallos o interrumpidos') }}</div>
+    <div class="col-6 col-xl-3">{{ kpi('bi-stopwatch', 'warn', promedio, 'Duración promedio (mm:ss)') }}</div>
 </div>
 
 <div class="row g-3">
-    <div class="col-lg-7">
+    <div class="col-xl-7">
         <div class="card-soft h-100">
-            <div class="card-head"><h2>Despliegues por mes</h2></div>
+            <div class="card-head"><h2><i class="bi bi-calendar3"></i>Despliegues por mes</h2><span class="card-sub">Últimos 6 meses</span></div>
             <div class="card-body-pad"><div class="chart-box"><canvas id="gMes"></canvas></div></div>
         </div>
     </div>
-    <div class="col-lg-5">
+    <div class="col-xl-5">
         <div class="card-soft h-100">
-            <div class="card-head"><h2>Distribución por estado</h2></div>
+            <div class="card-head"><h2><i class="bi bi-pie-chart"></i>Distribución por estado</h2></div>
             <div class="card-body-pad"><div class="chart-box"><canvas id="gEstado"></canvas></div></div>
         </div>
     </div>
     <div class="col-12">
         <div class="card-soft">
-            <div class="card-head"><h2>Actividad por usuario</h2></div>
+            <div class="card-head"><h2><i class="bi bi-people"></i>Actividad por usuario</h2><span class="card-sub">Top 10</span></div>
+            {% if usuarios %}
             <div class="table-responsive">
                 <table class="table table-modern">
-                    <thead><tr><th>Usuario</th><th class="text-center">Total</th><th class="text-center">Exitosos</th><th class="text-center">Con fallos</th><th style="width:30%">Éxito</th></tr></thead>
+                    <thead><tr><th>Usuario</th><th class="text-center">Total</th><th class="text-center">Exitosos</th><th class="text-center">Con fallos</th><th style="width:32%">Tasa de éxito</th></tr></thead>
                     <tbody>
                     {% for u in usuarios %}
                         {% set cerrados = u.exito + u.fallo %}
+                        {% set tasa = (u.exito * 100 / cerrados) | round | int if cerrados else 0 %}
                         <tr>
                             <td class="fw-semibold">{{ u.usuario }}</td>
-                            <td class="text-center">{{ u.total }}</td>
-                            <td class="text-center text-success fw-bold">{{ u.exito }}</td>
-                            <td class="text-center text-danger fw-bold">{{ u.fallo }}</td>
-                            <td><div class="progress-slim"><div style="width: {{ (u.exito * 100 / cerrados) | round | int if cerrados else 0 }}%"></div></div></td>
+                            <td class="text-center num">{{ u.total }}</td>
+                            <td class="text-center num text-success fw-bold">{{ u.exito }}</td>
+                            <td class="text-center num text-danger fw-bold">{{ u.fallo }}</td>
+                            <td><div class="d-flex align-items-center gap-2"><div class="progress-slim flex-grow-1"><div style="width: {{ tasa }}%"></div></div><span class="small text-muted num" style="width:2.6rem">{{ tasa }}%</span></div></td>
                         </tr>
-                    {% else %}
-                        <tr><td colspan="5"><div class="empty-state"><i class="bi bi-inbox"></i>Sin datos todavía.</div></td></tr>
                     {% endfor %}
                     </tbody>
                 </table>
             </div>
+            {% else %}{{ vacio('bi-inbox', 'Sin datos todavía') }}{% endif %}
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script type="application/json" id="datos-mensual">{{ mensual | tojson }}</script>
+<script type="application/json" id="datos-estados">{{ estados | tojson }}</script>
 <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.js') }}"></script>
-<script>
-const mensual = {{ mensual | tojson }};
-const estados = {{ estados | tojson }};
-new Chart(document.getElementById('gMes'), {
-    type: 'bar',
-    data: { labels: mensual.labels, datasets: [
-        { label: 'Exitosos', data: mensual.exito, backgroundColor: '#4d8a2a', borderRadius: 6 },
-        { label: 'Con fallos', data: mensual.fallo, backgroundColor: '#e05a5a', borderRadius: 6 } ] },
-    options: { responsive: true, maintainAspectRatio: false,
-        scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } },
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } },
-});
-new Chart(document.getElementById('gEstado'), {
-    type: 'doughnut',
-    data: { labels: estados.map(e => e[0]), datasets: [{ data: estados.map(e => e[1]),
-        backgroundColor: ['#4d8a2a', '#e05a5a', '#e0a21a', '#3b82c4', '#8a6bbf', '#8c9a86', '#2e9c9c'], borderWidth: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } } },
-});
-</script>
+<script src="{{ url_for('static', filename='js/informes.js') }}"></script>
 {% endblock %}

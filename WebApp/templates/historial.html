@@ -1,57 +1,47 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import estado, vacio %}
 {% block title %}Historial{% endblock %}
+{% block page_title %}Bitácora de despliegues{% endblock %}
+{% block page_sub %}Cada ejecución con su resultado, el detalle del error y el log técnico.{% endblock %}
+{% block page_actions %}
+<a class="btn btn-ghost" href="{{ url_for('main.exportar_csv') }}"><i class="bi bi-filetype-csv me-1"></i>Exportar CSV</a>
+{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Bitácora de despliegues</h1>
-        <p class="page-sub">Cada ejecución con su resultado, el detalle del error y el log técnico.</p>
-    </div>
-    <div class="d-flex gap-2">
-        <a class="btn btn-soft" href="{{ url_for('main.exportar_csv') }}"><i class="bi bi-filetype-csv me-1"></i>Exportar</a>
-        {% if sesion_rol in ('Administrador', 'Operador') %}
-        <a class="btn btn-brand" href="{{ url_for('deploy.nuevo_despliegue') }}"><i class="bi bi-plus-lg me-1"></i>Nuevo despliegue</a>
-        {% endif %}
-    </div>
-</div>
-
 <div class="card-soft">
-    <div class="card-head flex-wrap">
-        <div class="d-flex gap-2 flex-wrap flex-grow-1">
-            <div class="input-group" style="max-width:320px">
-                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                <input type="search" id="filtroTexto" class="form-control" placeholder="Buscar caso, usuario o detalle...">
-            </div>
-            <select id="filtroEstado" class="form-select" style="max-width:190px">
-                <option value="">Todos los estados</option>
-                <option value="exito">Exitosos</option>
-                <option value="fallo">Con fallos</option>
-                <option value="proceso">En proceso</option>
-            </select>
+    <div class="toolbar">
+        <div class="search">
+            <i class="bi bi-search"></i>
+            <input type="search" id="filtroTexto" class="form-control" placeholder="Buscar caso, usuario o detalle..." aria-label="Buscar">
         </div>
-        <span class="text-muted small" id="contador"></span>
+        <div class="seg" id="filtroEstado" role="group" aria-label="Filtrar por estado">
+            <button type="button" class="active" data-estado="">Todos</button>
+            <button type="button" data-estado="exito">Exitosos</button>
+            <button type="button" data-estado="fallo">Con fallos</button>
+            <button type="button" data-estado="proceso">En proceso</button>
+        </div>
+        <span class="text-muted small ms-auto" id="contador"></span>
     </div>
     <div class="table-responsive">
         <table class="table table-modern" id="tabla">
             <thead><tr><th>#</th><th>Caso</th><th>Usuario</th><th>Fecha</th><th>Destino</th><th>Estado</th><th>Duración</th><th>Detalle / error</th><th class="text-end">Log</th></tr></thead>
             <tbody>
             {% for r in registros %}
-                <tr data-clase="{{ r.Clase }}" data-texto="{{ (r.Caso ~ ' ' ~ r.Usuario ~ ' ' ~ r.Detalle ~ ' ' ~ r.Estado) | lower }}">
-                    <td class="text-muted">{{ r.ID }}</td>
+                <tr data-clase="{{ r.Clase }}" data-texto="{{ (r.Caso ~ ' ' ~ r.Usuario ~ ' ' ~ r.Detalle ~ ' ' ~ r.Estado ~ ' ' ~ r.Destino) | lower }}">
+                    <td class="text-muted num">{{ r.ID }}</td>
                     <td class="fw-bold">{{ r.Caso }}</td>
                     <td>{{ r.Usuario }}</td>
-                    <td class="text-muted text-nowrap">{{ r.Fecha }}</td>
+                    <td class="text-muted text-nowrap num">{{ r.Fecha }}</td>
                     <td>{{ r.Destino or '—' }}</td>
-                    <td><span class="badge-status {{ r.Clase }}">{{ r.Estado }}</span></td>
-                    <td class="text-muted">{{ r.Duracion or '—' }}</td>
+                    <td>{{ estado(r) }}</td>
+                    <td class="text-muted num">{{ r.Duracion or '—' }}</td>
                     <td>
-                        {% if r.Detalle %}
-                        <div class="cell-detail {{ 'text-danger' if r.Clase == 'fallo' }}" title="{{ r.Detalle }}">{{ r.Detalle }}</div>
+                        {% if r.Detalle %}<div class="cell-detail {{ 'text-danger' if r.Clase == 'fallo' }}" title="{{ r.Detalle }}">{{ r.Detalle }}</div>
                         {% else %}<span class="text-muted">—</span>{% endif %}
                     </td>
                     <td class="text-end">
                         {% if r.Log_File %}
-                        <button class="btn btn-sm {{ 'btn-outline-danger' if r.Clase == 'fallo' else 'btn-soft' }}" onclick="verLog({{ r.ID }}, 'Caso {{ r.Caso }}')">
+                        <button class="btn btn-sm {{ 'btn-outline-danger' if r.Clase == 'fallo' else 'btn-soft' }}" data-log="{{ r.ID }}" data-titulo="Caso {{ r.Caso }}">
                             <i class="bi bi-terminal me-1"></i>Ver log
                         </button>
                         {% endif %}
@@ -60,29 +50,9 @@
             {% endfor %}
             </tbody>
         </table>
-        <div class="empty-state {{ 'd-none' if registros }}" id="vacio"><i class="bi bi-inbox"></i>No hay registros que mostrar.</div>
+        <div class="{{ 'd-none' if registros }}" id="vacio">{{ vacio('bi-search', 'No hay registros que mostrar', 'Prueba con otro texto o estado.') }}</div>
     </div>
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-const filas = [...document.querySelectorAll('#tabla tbody tr')];
-const vacio = document.getElementById('vacio');
-function filtrar() {
-    const q = document.getElementById('filtroTexto').value.trim().toLowerCase();
-    const est = document.getElementById('filtroEstado').value;
-    let visibles = 0;
-    filas.forEach(f => {
-        const ok = (!q || f.dataset.texto.includes(q)) && (!est || f.dataset.clase === est);
-        f.classList.toggle('d-none', !ok);
-        if (ok) visibles++;
-    });
-    document.getElementById('contador').textContent = `${visibles} de ${filas.length} registros`;
-    vacio.classList.toggle('d-none', visibles > 0);
-}
-document.getElementById('filtroTexto').addEventListener('input', filtrar);
-document.getElementById('filtroEstado').addEventListener('change', filtrar);
-filtrar();
-</script>
-{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/historial.js') }}"></script>{% endblock %}

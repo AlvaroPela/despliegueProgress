@@ -1,167 +1,155 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import campo %}
 {% block title %}Ajustes{% endblock %}
+{% block page_sub %}Rutas, servidores destino, correo y acceso. Los cambios aplican al siguiente despliegue.{% endblock %}
 
-{% macro campo(id, etiqueta, valor, ayuda='', tipo='text') %}
-<div class="col-md-6">
-    <label class="form-label" for="{{ id }}">{{ etiqueta }}</label>
-    <input class="form-control" type="{{ tipo }}" id="{{ id }}" value="{{ valor }}">
-    {% if ayuda %}<div class="form-hint">{{ ayuda }}</div>{% endif %}
-</div>
-{% endmacro %}
+{% set pestanas = [
+    ('Rutas', 'bi-folder2-open', 'Rutas y Progress', 'Carpetas, OpenEdge y BD'),
+    ('Servidores', 'bi-hdd-network', 'Servidores', servidores.DG | length ~ ' DG · ' ~ servidores.Oficinas | length ~ ' oficinas'),
+    ('Correo', 'bi-envelope-at', 'Correo', 'Office 365 · OAuth 2.0'),
+    ('Acceso', 'bi-shield-check', 'Acceso', 'Active Directory y rutinas'),
+] %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Ajustes</h1>
-        <p class="page-sub">Rutas, servidores destino, correo y acceso. Los cambios aplican al siguiente despliegue.</p>
-    </div>
-    <button class="btn btn-brand btn-lg" id="btnGuardar"><i class="bi bi-save me-2"></i>Guardar cambios</button>
-</div>
-
-<ul class="nav nav-pills nav-pills-soft mb-3 gap-1" role="tablist">
-    <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tabRutas"><i class="bi bi-folder2-open me-1"></i>Rutas y Progress</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tabServidores"><i class="bi bi-hdd-network me-1"></i>Servidores</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tabCorreo"><i class="bi bi-envelope-at me-1"></i>Correo</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tabAcceso"><i class="bi bi-shield-check me-1"></i>Acceso</button></li>
-</ul>
-
-<div class="tab-content">
-    <!-- Rutas -->
-    <div class="tab-pane fade show active" id="tabRutas">
-        <div class="card-soft card-body-pad">
-            <div class="row g-3">
-                {{ campo('ruta_origen', 'Carpeta de recepción de fuentes', cfg.RutaOrigen, 'Aquí se depositan los archivos subidos antes de compilar.') }}
-                {{ campo('ruta_base_y', 'Carpeta de casos compilados', cfg.RutaBaseY, 'Se crea Año\\Mes\\Caso con fuentes, compilados y backup.') }}
-                {{ campo('ruta_base_n', 'Fuentes en red (N:)', cfg.RutaBaseN) }}
-                {{ campo('ruta_rutinas_n', 'Rutinas especiales en red (N:)', cfg.RutaRutinasN) }}
-                {{ campo('ruta_compilados', 'Carpeta de compilados finales (.r)', cfg.RutaCompilados) }}
-                {{ campo('ruta_backup', 'Carpeta de backups', cfg.RutaBackup, 'Copia de seguridad de los .r previos de producción.') }}
-                {{ campo('progress_exe', 'Ejecutable de Progress (prowin.exe)', cfg.ProgressExe) }}
-                {{ campo('progress_ini', 'Archivo INI de Progress', cfg.ProgressIni) }}
-                {{ campo('db_host', 'Servidor de base de datos', cfg.DbHost) }}
-                {{ campo('timeout_compilacion', 'Tiempo máximo por programa (segundos)', cfg.TimeoutCompilacion, '', 'number') }}
-                {{ campo('db_puerto_datos', 'Puerto BD «datos»', cfg.DbPuertoDatos, '', 'number') }}
-                {{ campo('db_puerto_seguimiento', 'Puerto BD «seguimiento»', cfg.DbPuertoSeguimiento, '', 'number') }}
-            </div>
-            <div class="alert alert-warning small mt-4 mb-0">
-                <i class="bi bi-exclamation-triangle me-1"></i>
-                Las unidades mapeadas (<code>N:</code>, <code>H:</code>) solo existen en sesiones interactivas. Si el servicio corre como tarea programada
-                sin sesión iniciada, usa rutas UNC (<code>\\servidor\recurso</code>).
-            </div>
+<form id="formAjustes" novalidate>
+<div class="row g-3">
+    <div class="col-lg-3">
+        <div class="nav flex-column gap-1 settings-nav" role="tablist" aria-orientation="vertical">
+            {% for clave, icono, titulo, sub in pestanas %}
+            <button class="nav-link {{ 'active' if loop.first }}" type="button" data-bs-toggle="pill" data-bs-target="#tab{{ clave }}" role="tab">
+                <i class="bi {{ icono }}"></i><span>{{ titulo }}<small>{{ sub }}</small></span>
+            </button>
+            {% endfor %}
         </div>
     </div>
 
-    <!-- Servidores -->
-    <div class="tab-pane fade" id="tabServidores">
-        <div class="card-soft card-body-pad">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label" for="servidores_dg">Dirección General — rutas UNC (una por línea)</label>
-                    <textarea class="form-control font-monospace" id="servidores_dg" rows="12" style="font-size:.82rem">{{ servidores.DG | join('\n') }}</textarea>
-                    <div class="form-hint">Ej: <code>\\10.100.4.38\d$\Escala</code></div>
+    <div class="col-lg-9">
+    <div class="tab-content">
+        <!-- Rutas -->
+        <div class="tab-pane fade show active" id="tabRutas" role="tabpanel">
+            <div class="card-soft">
+                <div class="card-head"><h2><i class="bi bi-folder2-open"></i>Carpetas de trabajo</h2></div>
+                <div class="card-body-pad"><div class="row g-3">
+                    {{ campo('ruta_origen', 'Recepción de fuentes', cfg.RutaOrigen, 'Aquí se depositan los archivos subidos antes de compilar.', mono=True) }}
+                    {{ campo('ruta_base_y', 'Casos compilados', cfg.RutaBaseY, 'Se crea Año\\Mes\\Caso con fuentes, compilados y backup.', mono=True) }}
+                    {{ campo('ruta_compilados', 'Compilados finales (.r)', cfg.RutaCompilados, mono=True) }}
+                    {{ campo('ruta_backup', 'Backups', cfg.RutaBackup, 'Copia de los .r previos de producción.', mono=True) }}
+                    {{ campo('ruta_base_n', 'Fuentes en red (N:)', cfg.RutaBaseN, mono=True) }}
+                    {{ campo('ruta_rutinas_n', 'Rutinas especiales en red (N:)', cfg.RutaRutinasN, mono=True) }}
+                </div></div>
+            </div>
+            <div class="card-soft mt-3">
+                <div class="card-head"><h2><i class="bi bi-cpu"></i>OpenEdge y base de datos</h2></div>
+                <div class="card-body-pad"><div class="row g-3">
+                    {{ campo('progress_exe', 'Ejecutable de Progress (prowin.exe)', cfg.ProgressExe, mono=True) }}
+                    {{ campo('progress_ini', 'Archivo INI de Progress', cfg.ProgressIni, mono=True) }}
+                    {{ campo('db_host', 'Servidor de base de datos', cfg.DbHost, col='col-md-6') }}
+                    {{ campo('timeout_compilacion', 'Tiempo máximo por programa (s)', cfg.TimeoutCompilacion, '', 'number') }}
+                    {{ campo('db_puerto_datos', 'Puerto BD «datos»', cfg.DbPuertoDatos, '', 'number') }}
+                    {{ campo('db_puerto_seguimiento', 'Puerto BD «seguimiento»', cfg.DbPuertoSeguimiento, '', 'number') }}
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="servidores_oficinas">Oficinas — IP (una por línea)</label>
-                    <textarea class="form-control font-monospace" id="servidores_oficinas" rows="12" style="font-size:.82rem">{{ servidores.Oficinas | join('\n') }}</textarea>
-                    <div class="form-hint">Se completa como <code>\\IP\Escala</code>. {{ servidores.Oficinas | length }} oficinas configuradas.</div>
-                </div>
+                <div class="banner warn mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <div class="banner-body small">Las unidades mapeadas (<code>N:</code>, <code>H:</code>) solo existen en sesiones interactivas. Si el servicio corre como
+                        tarea programada sin sesión iniciada, usa rutas UNC (<code>\\servidor\recurso</code>).</div>
+                </div></div>
             </div>
         </div>
-    </div>
 
-    <!-- Correo -->
-    <div class="tab-pane fade" id="tabCorreo">
-        <div class="row g-3">
-            <div class="col-lg-7">
-                <div class="card-soft card-body-pad">
-                    <div class="d-flex align-items-center gap-2 mb-3">
-                        <h2 class="h6 fw-bold mb-0">Servidor y remitente</h2>
-                        <span class="badge text-bg-success">OAuth 2.0 · XOAUTH2</span>
+        <!-- Servidores -->
+        <div class="tab-pane fade" id="tabServidores" role="tabpanel">
+            <div class="card-soft">
+                <div class="card-head"><h2><i class="bi bi-hdd-network"></i>Servidores destino</h2><span class="card-sub">Uno por línea</span></div>
+                <div class="card-body-pad"><div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="servidores_dg">Dirección General — rutas UNC</label>
+                        <textarea class="form-control mono" id="servidores_dg" name="servidores_dg" rows="14">{{ servidores.DG | join('\n') }}</textarea>
+                        <div class="form-hint">Ej: <code>\\10.100.4.38\d$\Escala</code></div>
                     </div>
-                    <div class="row g-3">
-                        {{ campo('servidor_smtp', 'Servidor SMTP', cfg.ServidorSmtp) }}
-                        {{ campo('puerto_smtp', 'Puerto (STARTTLS)', cfg.PuertoSmtp, '', 'number') }}
-                        {{ campo('usuario_smtp', 'Buzón remitente', cfg.UsuarioSmtp, 'Debe tener SMTP AUTH habilitado.') }}
-                        {{ campo('auth_tenant', 'Tenant ID (Directory)', cfg.Auth_Tenant) }}
-                        {{ campo('auth_client_id', 'Client ID (Application)', cfg.Auth_ClientID) }}
-                        <div class="col-12">
-                            <label class="form-label" for="destinatarios">Destinatarios de los informes</label>
-                            <textarea class="form-control" id="destinatarios" rows="4">{{ cfg.Destinatario | join('\n') }}</textarea>
-                            <div class="form-hint">Uno por línea o separados por coma.</div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="servidores_oficinas">Oficinas — IP</label>
+                        <textarea class="form-control mono" id="servidores_oficinas" name="servidores_oficinas" rows="14">{{ servidores.Oficinas | join('\n') }}</textarea>
+                        <div class="form-hint">Se completa como <code>\\IP\Escala</code>.</div>
+                    </div>
+                </div></div>
+            </div>
+        </div>
+
+        <!-- Correo -->
+        <div class="tab-pane fade" id="tabCorreo" role="tabpanel">
+            <div class="card-soft">
+                <div class="card-head"><h2><i class="bi bi-envelope-at"></i>Servidor y remitente</h2><span class="badge-role">OAuth 2.0 · XOAUTH2</span></div>
+                <div class="card-body-pad"><div class="row g-3">
+                    {{ campo('servidor_smtp', 'Servidor SMTP', cfg.ServidorSmtp) }}
+                    {{ campo('puerto_smtp', 'Puerto (STARTTLS)', cfg.PuertoSmtp, '', 'number') }}
+                    {{ campo('usuario_smtp', 'Buzón remitente', cfg.UsuarioSmtp, 'Debe tener SMTP AUTH habilitado.') }}
+                    {{ campo('auth_tenant', 'Tenant ID (Directory)', cfg.Auth_Tenant, mono=True) }}
+                    {{ campo('auth_client_id', 'Client ID (Application)', cfg.Auth_ClientID, mono=True) }}
+                    <div class="col-12">
+                        <label class="form-label" for="destinatarios">Destinatarios de los informes</label>
+                        <textarea class="form-control" id="destinatarios" name="destinatarios" rows="4">{{ cfg.Destinatario | join('\n') }}</textarea>
+                        <div class="form-hint">Uno por línea o separados por coma.</div>
+                    </div>
+                </div></div>
+            </div>
+            <div class="card-soft mt-3" data-no-guardar>
+                <div class="card-head">
+                    <h2><i class="bi bi-key"></i>Client Secret</h2>
+                    {% if smtp_secret %}<span class="badge-status exito">Guardado</span>{% else %}<span class="badge-status fallo">Sin secret</span>{% endif %}
+                </div>
+                <div class="card-body-pad">
+                    <p class="small text-muted">Se guarda cifrado con DPAPI (nunca en <code>config.json</code>). Guarda primero el Client ID.</p>
+                    <div class="row g-2">
+                        <div class="col-md"><input type="password" class="form-control" id="smtp_secret" name="smtp_secret" placeholder="Pega el valor del secret" autocomplete="new-password" aria-label="Client Secret"></div>
+                        <div class="col-md-auto d-flex gap-2">
+                            <button class="btn btn-soft" id="btnSecret" type="button"><i class="bi bi-lock me-1"></i>Guardar secret</button>
+                            <button class="btn btn-ghost" id="btnProbar" type="button"><i class="bi bi-plug me-1"></i>Probar conexión</button>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="col-lg-5">
-                <div class="card-soft card-body-pad">
-                    <h2 class="h6 fw-bold">Client Secret</h2>
-                    <p class="small text-muted">Se guarda cifrado con DPAPI (nunca en <code>config.json</code>). Guarda primero el Client ID con «Guardar cambios».</p>
-                    <div class="mb-2">
-                        {% if smtp_secret %}<span class="badge-status exito">Secret guardado</span>{% else %}<span class="badge-status fallo">Sin secret</span>{% endif %}
-                    </div>
-                    <div class="input-group mb-3">
-                        <input type="password" class="form-control" id="smtp_secret" placeholder="Pega el valor del secret" autocomplete="new-password">
-                        <button class="btn btn-soft" id="btnSecret" type="button">Guardar</button>
-                    </div>
-                    <button class="btn btn-outline-success w-100" id="btnProbar" type="button"><i class="bi bi-plug me-1"></i>Probar conexión OAuth</button>
-                    <hr>
-                    <div class="small text-muted">
-                        <b>Requisitos en Microsoft Entra / Exchange Online:</b>
-                        <ol class="ps-3 mb-0 mt-1">
-                            <li>Registro de aplicación con permiso de aplicación <code>SMTP.Send</code> (Office 365 Exchange Online) y consentimiento de administrador.</li>
+                    <details class="small text-muted mt-3">
+                        <summary class="fw-semibold">Requisitos en Microsoft Entra / Exchange Online</summary>
+                        <ol class="ps-3 mb-0 mt-2">
+                            <li>Registro de aplicación con permiso <code>SMTP.Send</code> (Office 365 Exchange Online) y consentimiento de administrador.</li>
                             <li>Registrar el service principal en Exchange y darle permiso sobre el buzón remitente.</li>
                             <li>SMTP AUTH habilitado en el buzón.</li>
                         </ol>
+                    </details>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acceso -->
+        <div class="tab-pane fade" id="tabAcceso" role="tabpanel">
+            <div class="card-soft">
+                <div class="card-head"><h2><i class="bi bi-shield-check"></i>Active Directory</h2></div>
+                <div class="card-body-pad"><div class="row g-3">
+                    {{ campo('ldap_server', 'Servidor LDAP / Active Directory', cfg.LdapServer) }}
+                    {{ campo('ldap_dominio', 'Dominio (NetBIOS)', cfg.LdapDominio, 'Se antepone al usuario: DOMINIO\\usuario') }}
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="restringir_usuarios" {{ 'checked' if cfg.RestringirAUsuarios }}>
+                            <label class="form-check-label fw-semibold" for="restringir_usuarios">Restringir el acceso a los usuarios registrados en «Usuarios»</label>
+                        </div>
+                        <div class="form-hint">Si está apagado, cualquier usuario válido de AD puede ingresar como Administrador. Actívalo cuando hayas registrado a tu equipo.</div>
                     </div>
+                </div></div>
+            </div>
+            <div class="card-soft mt-3">
+                <div class="card-head"><h2><i class="bi bi-list-check"></i>Rutinas especiales</h2><span class="card-sub">Se copian a la carpeta de rutinas de red</span></div>
+                <div class="card-body-pad">
+                    <textarea class="form-control mono" id="rutinas_especiales" name="rutinas_especiales" rows="9" aria-label="Rutinas especiales">{{ cfg.RutinasEspeciales | join('\n') }}</textarea>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Acceso -->
-    <div class="tab-pane fade" id="tabAcceso">
-        <div class="card-soft card-body-pad">
-            <div class="row g-3">
-                {{ campo('ldap_server', 'Servidor LDAP / Active Directory', cfg.LdapServer) }}
-                {{ campo('ldap_dominio', 'Dominio (NetBIOS)', cfg.LdapDominio, 'Se antepone al usuario: DOMINIO\\usuario') }}
-                <div class="col-12">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="restringir_usuarios" {{ 'checked' if cfg.RestringirAUsuarios }}>
-                        <label class="form-check-label fw-semibold" for="restringir_usuarios">Restringir el acceso a los usuarios registrados en «Usuarios»</label>
-                    </div>
-                    <div class="form-hint">Si está apagado, cualquier usuario válido de AD puede ingresar como Administrador. Actívalo cuando hayas registrado a tu equipo.</div>
-                </div>
-                <div class="col-12">
-                    <label class="form-label" for="rutinas_especiales">Rutinas especiales (se copian a la carpeta de rutinas de red)</label>
-                    <textarea class="form-control font-monospace" id="rutinas_especiales" rows="8" style="font-size:.82rem">{{ cfg.RutinasEspeciales | join('\n') }}</textarea>
-                </div>
-            </div>
-        </div>
+    <div class="save-bar" id="saveBar">
+        <span class="estado">Los cambios aplican al siguiente despliegue.</span>
+        <button class="btn btn-brand" id="btnGuardar" type="submit"><i class="bi bi-save me-1"></i>Guardar cambios</button>
+    </div>
     </div>
 </div>
+</form>
 {% endblock %}
 
-{% block scripts %}
-<script>
-const v = (id) => document.getElementById(id).value;
-document.getElementById('btnGuardar').addEventListener('click', async () => {
-    const campos = ['ruta_origen','ruta_base_y','ruta_base_n','ruta_rutinas_n','ruta_compilados','ruta_backup','progress_exe','progress_ini',
-        'db_host','db_puerto_datos','db_puerto_seguimiento','timeout_compilacion','servidor_smtp','puerto_smtp','usuario_smtp','auth_tenant',
-        'auth_client_id','destinatarios','ldap_server','ldap_dominio','rutinas_especiales','servidores_dg','servidores_oficinas'];
-    const json = Object.fromEntries(campos.map((c) => [c, v(c)]));
-    json.restringir_usuarios = document.getElementById('restringir_usuarios').checked;
-    try { await api('/api/configuracion', { method: 'POST', json }); toast('Configuración guardada'); }
-    catch (e) { toast(e.message, 'error'); }
-});
-document.getElementById('btnSecret').addEventListener('click', async () => {
-    try { await api('/api/smtp/secret', { method: 'POST', json: { secret: v('smtp_secret') } }); toast('Secret guardado cifrado'); setTimeout(() => location.reload(), 700); }
-    catch (e) { toast(e.message, 'error'); }
-});
-document.getElementById('btnProbar').addEventListener('click', async (ev) => {
-    const b = ev.currentTarget; b.disabled = true; b.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Probando...';
-    try { const r = await api('/api/smtp/probar', { method: 'POST', json: {} }); Swal.fire({ icon: 'success', title: 'Conexión correcta', text: r.message, confirmButtonColor: '#4d8a2a' }); }
-    catch (e) { Swal.fire({ icon: 'error', title: 'Falló la prueba', text: e.message, confirmButtonColor: '#4d8a2a' }); }
-    finally { b.disabled = false; b.innerHTML = '<i class="bi bi-plug me-1"></i>Probar conexión OAuth'; }
-});
-</script>
-{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/configuracion.js') }}"></script>{% endblock %}

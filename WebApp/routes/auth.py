@@ -47,6 +47,9 @@ def login():
         rol = _rol_y_acceso(info["usuario"], cfg)
         if rol is None:
             raise ldap_auth.AuthError("Tu usuario no está autorizado. Solicita acceso a un administrador.")
+    except ValueError as exc:  # config.json mal formado
+        log.error("Configuración inválida en el login: %s", exc)
+        return render_template("login.html", error=f"Error de configuración: {exc}"), 500
     except ldap_auth.AuthError as exc:
         _intentos.setdefault(ip, []).append(time.time())
         log.warning("Login fallido de %s desde %s: %s", request.form.get("username"), ip, exc)

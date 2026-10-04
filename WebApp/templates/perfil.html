@@ -1,30 +1,24 @@
 {% extends 'base.html' %}
 {% block title %}Mi perfil{% endblock %}
+{% block page_sub %}Tu cuenta y las credenciales de la base de datos Progress, guardadas cifradas.{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Mi perfil</h1>
-        <p class="page-sub">Credenciales de la base de datos Progress, guardadas cifradas.</p>
-    </div>
-</div>
-
 <div class="row g-3">
     <div class="col-lg-4">
         <div class="card-soft card-body-pad text-center">
-            <span class="avatar mx-auto" style="width:72px;height:72px;font-size:1.8rem">{{ (sesion_nombre or '?')[0] }}</span>
+            <span class="avatar xl mx-auto">{{ (sesion_nombre or '?')[0] }}</span>
             <h2 class="h5 fw-bold mt-3 mb-0">{{ sesion_nombre }}</h2>
             <div class="text-muted small">{{ sesion_usuario }}</div>
-            <span class="badge text-bg-success mt-2">{{ sesion_rol }}</span>
+            <span class="badge-role mt-2">{{ sesion_rol }}</span>
         </div>
     </div>
     <div class="col-lg-8">
-        <div class="card-soft">
+        <form class="card-soft" id="formBD" autocomplete="off">
             <div class="card-head">
-                <h2><i class="bi bi-database-lock me-2 text-success"></i>Base de datos Progress</h2>
+                <h2><i class="bi bi-database-lock"></i>Base de datos Progress</h2>
                 {% if db_configurada %}<span class="badge-status exito">Configuradas</span>{% else %}<span class="badge-status fallo">Sin configurar</span>{% endif %}
             </div>
-            <form class="card-body-pad" id="formBD" autocomplete="off">
+            <div class="card-body-pad">
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label" for="db_user">Usuario de BD</label>
@@ -35,27 +29,18 @@
                         <input class="form-control" type="password" id="db_pass" required autocomplete="new-password" placeholder="{{ '••••••••  (escribe para reemplazar)' if db_configurada }}">
                     </div>
                 </div>
-                <div class="alert alert-light border small mt-3 mb-3">
-                    <i class="bi bi-shield-lock text-success me-1"></i>
-                    Se cifran con DPAPI de Windows y solo las puede descifrar <b>el usuario de Windows que ejecuta este servicio</b>.
-                    <div class="text-muted mt-1">Ubicación: <code>{{ carpeta }}</code></div>
+                <div class="banner info mt-3 mb-0">
+                    <i class="bi bi-shield-lock"></i>
+                    <div class="banner-body">Se cifran con DPAPI de Windows y solo las puede descifrar <b>el usuario de Windows que ejecuta este servicio</b>.
+                        <div class="small mt-1">Ubicación: <code>{{ carpeta }}</code></div></div>
                 </div>
+            </div>
+            <div class="card-foot text-end">
                 <button class="btn btn-brand" type="submit"><i class="bi bi-save me-1"></i>Guardar credenciales</button>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-document.getElementById('formBD').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-        await api('/api/credenciales/bd', { method: 'POST', json: {
-            db_user: document.getElementById('db_user').value, db_pass: document.getElementById('db_pass').value } });
-        toast('Credenciales guardadas de forma segura'); setTimeout(() => location.reload(), 700);
-    } catch (err) { toast(err.message, 'error'); }
-});
-</script>
-{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/perfil.js') }}"></script>{% endblock %}
