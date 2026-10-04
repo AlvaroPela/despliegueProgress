@@ -1,36 +1,48 @@
-"""Envío de correo por SMTP de Office 365 con autenticación moderna (OAuth 2.0 / XOAUTH2).
+"""Envío de correo con Microsoft Graph (sendMail) y autenticación de aplicación OAuth 2.0.
 
-Flujo "client credentials" de Microsoft Entra ID:
-  1. Se pide un token a login.microsoftonline.com con el Client ID, el Tenant y el Client Secret.
-  2. Se autentica en smtp.office365.com:587 (STARTTLS) con el mecanismo XOAUTH2.
+Flujo "client credentials" de Microsoft Entra ID (el mismo que usan otras aplicaciones internas):
+  1. Se pide un token a login.microsoftonline.com con el Client ID, el Tenant y el Client Secret,
+     con el scope https://graph.microsoft.com/.default
+  2. Se envía con POST https://graph.microsoft.com/v1.0/users/{remitente}/sendMail
 
-Requisitos en Entra ID / Exchange Online:
-  - App registration con el permiso de aplicación  Office 365 Exchange Online > SMTP.Send  (consentimiento de admin).
-  - Registrar el service principal en Exchange (New-ServicePrincipal) y darle permiso sobre el buzón remitente
-    (Add-MailboxPermission ... -AccessRights FullAccess).
-  - SMTP AUTH habilitado en el buzón remitente.
+Requisitos en Entra ID:
+  - App registration con el permiso de aplicación  Microsoft Graph > Mail.Send  (consentimiento de admin).
+  - No requiere SMTP AUTH en el buzón ni registrar el service principal en Exchange.
 El Client Secret se guarda cifrado con DPAPI (credencial "Smtp"), nunca en config.json.
 """
+import base64
 import json
 import logging
-import smtplib
-import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 from config import load_config
 from services import credentials
 
 log = logging.getLogger(__name__)
 
-SCOPE = "https://outlook.office365.com/.default"
+SCOPE = "https://graph.microsoft.com/.default"
+GRAPH = "https://graph.microsoft.com/v1.0"
+TIMEOUT_S = 30
 
 
 class MailError(Exception):
     pass
+
+
+def _detalle_http(exc):
+    """Extrae el mensaje legible de una respuesta de error de Entra ID o de Graph."""
+    try:
+        cuerpo = json.loads(exc.read())
+    except Exception:
+        return str(exc.reason)
+    if "error_description" in cuerpo:  # Entra ID
+        return cuerpo["error_description"].split("\r\n")[0]
+    error = cuerpo.get("error", {})
+    if isinstance(error, dict):  # Graph
+        return f"{error.get('code', '')}: {error.get('message', '')}".strip(": ")
+    return str(error)
 
 
 def _obtener_token(tenant, client_id, secret):
@@ -40,21 +52,27 @@ def _obtener_token(tenant, client_id, secret):
         "scope": SCOPE, "grant_type": "client_credentials",
     }).encode()
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, data=cuerpo), timeout=30) as resp:
+        with urllib.request.urlopen(urllib.request.Request(url, data=cuerpo), timeout=TIMEOUT_S) as resp:
             return json.loads(resp.read())["access_token"]
     except urllib.error.HTTPError as exc:
-        try:
-            detalle = json.loads(exc.read()).get("error_description", "").split("\r\n")[0]
-        except Exception:
-            detalle = exc.reason
-        raise MailError(f"Entra ID rechazó la solicitud de token ({exc.code}): {detalle}")
+        raise MailError(f"Entra ID rechazó la solicitud de token ({exc.code}): {_detalle_http(exc)}")
     except Exception as exc:
         raise MailError(f"No se pudo contactar a login.microsoftonline.com: {exc}")
 
 
+def _roles(token):
+    """Permisos de aplicación incluidos en el token (claim 'roles' del JWT)."""
+    try:
+        carga = token.split(".")[1]
+        carga += "=" * (-len(carga) % 4)
+        return json.loads(base64.urlsafe_b64decode(carga)).get("roles", [])
+    except Exception:
+        return []
+
+
 def _configuracion():
     cfg = load_config()
-    faltantes = [k for k in ("UsuarioSmtp", "ServidorSmtp", "Auth_ClientID", "Auth_Tenant") if not cfg.get(k)]
+    faltantes = [k for k in ("UsuarioSmtp", "Auth_ClientID", "Auth_Tenant") if not cfg.get(k)]
     if faltantes:
         raise MailError("Falta configurar en Ajustes > Correo: " + ", ".join(faltantes))
     cred = credentials.cargar("Smtp")
@@ -63,27 +81,48 @@ def _configuracion():
     return cfg, cred[1]
 
 
-def _conectar(cfg, secret):
+def _token(cfg, secret):
     token = _obtener_token(cfg["Auth_Tenant"], cfg["Auth_ClientID"], secret)
-    auth = f"user={cfg['UsuarioSmtp']}\x01auth=Bearer {token}\x01\x01"
+    roles = _roles(token)
+    if "Mail.Send" not in roles:
+        actuales = ", ".join(roles) or "ninguno"
+        raise MailError("La aplicación no tiene el permiso Microsoft Graph > Mail.Send (tipo Aplicación). "
+                        f"Permisos actuales: {actuales}. Agrégalo en Entra ID y concede el consentimiento de administrador.")
+    return token
+
+
+def _send_mail(cfg, token, asunto, html, destinatarios):
+    remitente = cfg["UsuarioSmtp"]
+    mensaje = {
+        "message": {
+            "subject": asunto,
+            "body": {"contentType": "HTML", "content": html},
+            "toRecipients": [{"emailAddress": {"address": d}} for d in destinatarios],
+        },
+        "saveToSentItems": False,
+    }
+    req = urllib.request.Request(
+        f"{GRAPH}/users/{urllib.parse.quote(remitente, safe='@')}/sendMail",
+        data=json.dumps(mensaje).encode("utf-8"),
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+    )
     try:
-        smtp = smtplib.SMTP(cfg["ServidorSmtp"], int(cfg["PuertoSmtp"]), timeout=30)
-        smtp.ehlo()
-        smtp.starttls(context=ssl.create_default_context())
-        smtp.ehlo()
-        smtp.auth("XOAUTH2", lambda challenge=None: auth)
-        return smtp
-    except smtplib.SMTPAuthenticationError as exc:
-        raise MailError(f"Office 365 rechazó la autenticación XOAUTH2: {exc.smtp_error.decode(errors='ignore')}")
+        with urllib.request.urlopen(req, timeout=TIMEOUT_S):
+            pass  # 202 Accepted
+    except urllib.error.HTTPError as exc:
+        raise MailError(f"Microsoft Graph rechazó el envío desde {remitente} ({exc.code}): {_detalle_http(exc)}")
     except Exception as exc:
-        raise MailError(f"Fallo en la conexión SMTP: {exc}")
+        raise MailError(f"No se pudo contactar a graph.microsoft.com: {exc}")
 
 
 def probar_conexion():
-    """Obtiene el token y autentica en SMTP sin enviar nada."""
+    """Obtiene el token, valida el permiso Mail.Send y envía un correo de prueba al propio buzón remitente."""
     cfg, secret = _configuracion()
-    smtp = _conectar(cfg, secret)
-    smtp.quit()
+    token = _token(cfg, secret)
+    _send_mail(cfg, token, "Prueba de conexión - Sistema de Despliegues",
+               "<p>Correo de prueba del Sistema de Despliegues. La configuración de Microsoft Graph es correcta.</p>",
+               [cfg["UsuarioSmtp"]])
+    return cfg["UsuarioSmtp"]
 
 
 def enviar(asunto, html, destinatarios=None):
@@ -91,18 +130,4 @@ def enviar(asunto, html, destinatarios=None):
     destinatarios = destinatarios or cfg.get("Destinatario") or []
     if not destinatarios:
         raise MailError("No hay destinatarios configurados.")
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = asunto
-    msg["From"] = cfg["UsuarioSmtp"]
-    msg["To"] = ", ".join(destinatarios)
-    msg.attach(MIMEText(html, "html", "utf-8"))
-    smtp = _conectar(cfg, secret)
-    try:
-        smtp.sendmail(cfg["UsuarioSmtp"], destinatarios, msg.as_string())
-    except Exception as exc:
-        raise MailError(f"No se pudo enviar el mensaje: {exc}")
-    finally:
-        try:
-            smtp.quit()
-        except Exception:
-            pass
+    _send_mail(cfg, _token(cfg, secret), asunto, html, destinatarios)

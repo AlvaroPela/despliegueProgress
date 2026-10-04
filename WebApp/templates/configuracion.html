@@ -6,7 +6,7 @@
 {% set pestanas = [
     ('Rutas', 'bi-folder2-open', 'Rutas y Progress', 'Carpetas, OpenEdge y BD'),
     ('Servidores', 'bi-hdd-network', 'Servidores', servidores.DG | length ~ ' DG · ' ~ servidores.Oficinas | length ~ ' oficinas'),
-    ('Correo', 'bi-envelope-at', 'Correo', 'Office 365 · OAuth 2.0'),
+    ('Correo', 'bi-envelope-at', 'Correo', 'Microsoft Graph · OAuth 2.0'),
     ('Acceso', 'bi-shield-check', 'Acceso', 'Active Directory y rutinas'),
 ] %}
 
@@ -78,11 +78,9 @@
         <!-- Correo -->
         <div class="tab-pane fade" id="tabCorreo" role="tabpanel">
             <div class="card-soft">
-                <div class="card-head"><h2><i class="bi bi-envelope-at"></i>Servidor y remitente</h2><span class="badge-role">OAuth 2.0 · XOAUTH2</span></div>
+                <div class="card-head"><h2><i class="bi bi-envelope-at"></i>Remitente y aplicación</h2><span class="badge-role">Microsoft Graph · Mail.Send</span></div>
                 <div class="card-body-pad"><div class="row g-3">
-                    {{ campo('servidor_smtp', 'Servidor SMTP', cfg.ServidorSmtp) }}
-                    {{ campo('puerto_smtp', 'Puerto (STARTTLS)', cfg.PuertoSmtp, '', 'number') }}
-                    {{ campo('usuario_smtp', 'Buzón remitente', cfg.UsuarioSmtp, 'Debe tener SMTP AUTH habilitado.') }}
+                    {{ campo('usuario_smtp', 'Buzón remitente', cfg.UsuarioSmtp, 'Cuenta desde la que se envían las notificaciones.', col='col-12') }}
                     {{ campo('auth_tenant', 'Tenant ID (Directory)', cfg.Auth_Tenant, mono=True) }}
                     {{ campo('auth_client_id', 'Client ID (Application)', cfg.Auth_ClientID, mono=True) }}
                     <div class="col-12">
@@ -103,15 +101,15 @@
                         <div class="col-md"><input type="password" class="form-control" id="smtp_secret" name="smtp_secret" placeholder="Pega el valor del secret" autocomplete="new-password" aria-label="Client Secret"></div>
                         <div class="col-md-auto d-flex gap-2">
                             <button class="btn btn-soft" id="btnSecret" type="button"><i class="bi bi-lock me-1"></i>Guardar secret</button>
-                            <button class="btn btn-ghost" id="btnProbar" type="button"><i class="bi bi-plug me-1"></i>Probar conexión</button>
+                            <button class="btn btn-ghost" id="btnProbar" type="button"><i class="bi bi-send me-1"></i>Enviar correo de prueba</button>
                         </div>
                     </div>
                     <details class="small text-muted mt-3">
                         <summary class="fw-semibold">Requisitos en Microsoft Entra / Exchange Online</summary>
                         <ol class="ps-3 mb-0 mt-2">
-                            <li>Registro de aplicación con permiso <code>SMTP.Send</code> (Office 365 Exchange Online) y consentimiento de administrador.</li>
-                            <li>Registrar el service principal en Exchange y darle permiso sobre el buzón remitente.</li>
-                            <li>SMTP AUTH habilitado en el buzón.</li>
+                            <li>Registro de aplicación con el permiso <code>Mail.Send</code> de Microsoft Graph, tipo <b>Aplicación</b>.</li>
+                            <li>Consentimiento de administrador concedido para ese permiso.</li>
+                            <li>Puedes reutilizar el mismo registro (Tenant, Client ID y Secret) de otras aplicaciones que ya envían con Graph.</li>
                         </ol>
                     </details>
                 </div>

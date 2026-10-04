@@ -4,7 +4,7 @@ Etapas:
   1. Estructura de carpetas del caso y copia de fuentes (incluida la red N:)
   2. Compilación con OpenEdge (prowin.exe), leyendo compilacion.log de compilar.p
   3. Backup previo desde el primer servidor destino y copia de los .r a todos los destinos
-  4. Notificación por correo (OAuth 2.0)
+  4. Notificación por correo (Microsoft Graph)
 """
 import html
 import json

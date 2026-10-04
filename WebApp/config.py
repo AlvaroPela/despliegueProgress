@@ -30,8 +30,6 @@ DEFAULTS = {
     "DbPuertoSeguimiento": 5150,
     "TimeoutCompilacion": 300,
     "UsuarioSmtp": "",
-    "ServidorSmtp": "smtp.office365.com",
-    "PuertoSmtp": 587,
     "Destinatario": [],
     "Auth_ClientID": "",
     "Auth_Tenant": "",

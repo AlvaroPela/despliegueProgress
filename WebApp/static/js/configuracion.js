@@ -1,4 +1,4 @@
-/* Ajustes: guardar configuración, secret SMTP y prueba OAuth */
+/* Ajustes: guardar configuración, Client Secret y correo de prueba (Microsoft Graph) */
 (function () {
     const form = document.getElementById('formAjustes');
     const barra = document.getElementById('saveBar');
@@ -35,7 +35,7 @@
     });
     document.getElementById('btnProbar').addEventListener('click', async (ev) => {
         const b = ev.currentTarget, html = b.innerHTML;
-        b.disabled = true; b.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Probando...';
+        b.disabled = true; b.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Enviando...';
         try { const r = await api('/api/smtp/probar', { method: 'POST', json: {} }); Alerta.fire({ icon: 'success', title: 'Conexión correcta', text: r.message }); }
         catch (err) { Alerta.fire({ icon: 'error', title: 'Falló la prueba', text: err.message }); }
         finally { b.disabled = false; b.innerHTML = html; }

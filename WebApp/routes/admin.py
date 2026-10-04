@@ -83,8 +83,7 @@ def guardar_configuracion():
             "DbHost": d["db_host"].strip(),
             "DbPuertoDatos": int(d["db_puerto_datos"]), "DbPuertoSeguimiento": int(d["db_puerto_seguimiento"]),
             "TimeoutCompilacion": int(d["timeout_compilacion"]),
-            "UsuarioSmtp": d["usuario_smtp"].strip(), "ServidorSmtp": d["servidor_smtp"].strip(),
-            "PuertoSmtp": int(d["puerto_smtp"]), "Destinatario": _lineas(d.get("destinatarios")),
+            "UsuarioSmtp": d["usuario_smtp"].strip(), "Destinatario": _lineas(d.get("destinatarios")),
             "Auth_ClientID": d["auth_client_id"].strip(), "Auth_Tenant": d["auth_tenant"].strip(),
             "LdapServer": d["ldap_server"].strip(), "LdapDominio": d["ldap_dominio"].strip(),
             "RestringirAUsuarios": bool(d.get("restringir_usuarios")),
@@ -120,10 +119,10 @@ def guardar_secret_smtp():
 @rol_requerido(*ADMIN)
 def probar_smtp():
     try:
-        mailer.probar_conexion()
+        remitente = mailer.probar_conexion()
     except mailer.MailError as exc:
         return _error(str(exc))
-    return _ok(message="Autenticación OAuth 2.0 correcta con Office 365.")
+    return _ok(message=f"Conexión con Microsoft Graph correcta. Se envió un correo de prueba a {remitente}.")
 
 
 # ------------------------------------------------------------------ Perfil

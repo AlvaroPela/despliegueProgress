@@ -55,7 +55,7 @@ def revisar_entorno(con_red=True):
                          "ok" if os.path.isdir(os.path.dirname(cfg["RutaBaseN"]) or cfg["RutaBaseN"]) else "warn",
                          cfg["RutaBaseN"]))
     smtp_ok = bool(cfg["Auth_ClientID"] and cfg["Auth_Tenant"] and cfg["UsuarioSmtp"] and credentials.existe("Smtp"))
-    checks.append(_check("smtp", "Correo (OAuth 2.0)", "ok" if smtp_ok else "warn",
+    checks.append(_check("smtp", "Correo (Microsoft Graph)", "ok" if smtp_ok else "warn",
                          "Listo" if smtp_ok else "Sin configurar: no se enviarán notificaciones"))
     if con_red:
         up = ping(cfg["DbHost"], 700)
