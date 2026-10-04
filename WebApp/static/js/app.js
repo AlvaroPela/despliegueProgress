@@ -66,24 +66,6 @@
         }
     };
 
-    /* ---- Solicitud de credenciales de BD cuando faltan ---- */
-    window.pedirCredencialesBD = async function () {
-        const r = await Alerta.fire({
-            title: 'Credenciales de base de datos', icon: 'warning', allowOutsideClick: false, allowEscapeKey: false,
-            html: '<p class="text-muted small">Se guardarán cifradas (DPAPI) en el perfil de Windows del usuario que ejecuta el servicio.</p>' +
-                  '<input id="sw-u" class="swal2-input" placeholder="Usuario de BD" autocomplete="off">' +
-                  '<input id="sw-p" type="password" class="swal2-input" placeholder="Contraseña de BD" autocomplete="new-password">',
-            confirmButtonText: 'Guardar', showCancelButton: true, cancelButtonText: 'Más tarde',
-            preConfirm: async () => {
-                const u = document.getElementById('sw-u').value.trim(), p = document.getElementById('sw-p').value;
-                if (!u || !p) { Swal.showValidationMessage('Ambos campos son obligatorios'); return false; }
-                try { await api('/api/credenciales/bd', { method: 'POST', json: { db_user: u, db_pass: p } }); return true; }
-                catch (e) { Swal.showValidationMessage(e.message); return false; }
-            },
-        });
-        if (r.isConfirmed) { toast('Credenciales guardadas'); setTimeout(() => location.reload(), 700); }
-    };
-
     /* ---- Gráficos (Chart.js) con estilo común ---- */
     window.COLORES = { ok: VERDE, bad: '#e05a5a', paleta: [VERDE, '#e05a5a', '#e0a21a', '#3b82c4', '#8a6bbf', '#8c9a86', '#2e9c9c'] };
     window.estiloGraficos = function () {
@@ -117,7 +99,6 @@
     document.addEventListener('click', (e) => {
         if (e.target.closest('[data-nav-toggle]')) document.body.classList.toggle('nav-open');
         else if (e.target.closest('[data-nav-close]')) document.body.classList.remove('nav-open');
-        if (e.target.closest('[data-pedir-credenciales]')) pedirCredencialesBD();
     });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.body.classList.remove('nav-open'); });
 })();

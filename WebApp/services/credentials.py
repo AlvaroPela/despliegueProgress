@@ -88,11 +88,15 @@ def usuario_de(nombre):
     return cred[0] if cred else ""
 
 
-def guardar_bd(usuario, clave):
-    """Mismas credenciales para ambas bases (Datos y Seguimiento), como en el flujo original."""
-    guardar("Datos", usuario, clave)
-    guardar("Seguimiento", usuario, clave)
+BASES_BD = ("Datos", "Seguimiento")  # BdAgencias.db (-ld datos) y Seguimiento.db (-ld seguimiento)
+
+
+def guardar_bd(base, usuario, clave):
+    """Cada base de datos tiene su propio usuario y contraseña."""
+    if base not in BASES_BD:
+        raise ValueError(f"Base de datos desconocida: {base}")
+    guardar(base, usuario, clave)
 
 
 def bd_configurada():
-    return existe("Datos")
+    return all(existe(b) for b in BASES_BD)

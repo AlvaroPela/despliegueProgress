@@ -371,11 +371,12 @@ def _etapa2(run):
     cfg = run.cfg
     run.progreso(2, "Leyendo credenciales de base de datos...")
     datos = credentials.cargar("Datos")
-    if not datos:
+    seguimiento = credentials.cargar("Seguimiento")
+    faltan = [n for n, c in (("datos", datos), ("seguimiento", seguimiento)) if not c]
+    if faltan:
         raise DeployError("Error de Credenciales",
-                          "No se pudieron leer las credenciales de BD (¿no configuradas o guardadas por otro usuario de Windows?). "
-                          "Configúralas en Perfil > Base de datos con el usuario que ejecuta el servicio.")
-    seguimiento = credentials.cargar("Seguimiento") or datos
+                          f"No se pudieron leer las credenciales de la BD {' y '.join(faltan)} (¿no configuradas o guardadas "
+                          "por otro usuario de Windows?). Configúralas en Mi perfil con el usuario que ejecuta el servicio.")
     if not os.path.exists(cfg["ProgressExe"]):
         raise DeployError("Error", f"No se encontró {cfg['ProgressExe']}.")
     if not os.path.exists(COMPILAR_P_PATH):
@@ -393,7 +394,7 @@ def _etapa2(run):
         cmd = [
             cfg["ProgressExe"], "-b", "-cpinternal", "undefined", "-cpstream", "undefined",
             "-p", COMPILAR_P_PATH, "-param", f"{origen};{carpeta}",
-            "-basekey", "INI", "-ini", cfg["ProgressIni"],
+            "-basekey", "INI", "-ininame", cfg["ProgressIni"],
             "-db", "BdAgencias.db", "-ld", "datos", "-H", cfg["DbHost"], "-S", str(cfg["DbPuertoDatos"]),
             "-U", datos[0], "-P", datos[1],
             "-db", "Seguimiento.db", "-ld", "seguimiento", "-H", cfg["DbHost"], "-S", str(cfg["DbPuertoSeguimiento"]),
@@ -425,7 +426,10 @@ def _etapa2(run):
             run.log(f"{nombre} compilado correctamente")
         else:
             fallidos.append(nombre)
-            if not detalle_progress:
+            if "(710)" in salida:
+                run.log(f"{nombre}: la base de datos rechazó el usuario o la contraseña (error 710). Revisa en Mi perfil "
+                        "las credenciales de la BD «datos» y de la BD «seguimiento» (son distintas).", "ERROR")
+            elif not detalle_progress:
                 run.log(f"{nombre}: no se generó compilacion.log (código {codigo}). Posible fallo de conexión a la BD, "
                         "credenciales inválidas o ruta INI inaccesible.", "ERROR")
 

@@ -87,8 +87,8 @@
             {% if faltan_credenciales %}
             <div class="banner warn" role="alert">
                 <i class="bi bi-database-exclamation"></i>
-                <div class="banner-body"><b>Faltan las credenciales de la base de datos.</b> Sin ellas no es posible compilar ni desplegar.</div>
-                <button class="btn btn-sm btn-ghost" type="button" data-pedir-credenciales>Configurar ahora</button>
+                <div class="banner-body"><b>Faltan credenciales de base de datos.</b> Configura las de la BD «datos» y la BD «seguimiento» para poder compilar.</div>
+                <a class="btn btn-sm btn-ghost" href="{{ url_for('admin.perfil') }}">Configurar ahora</a>
             </div>
             {% endif %}
 

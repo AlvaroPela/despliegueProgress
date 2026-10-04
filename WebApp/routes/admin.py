@@ -130,20 +130,25 @@ def probar_smtp():
 @bp.route("/perfil")
 @login_required
 def perfil():
-    return render_template("perfil.html", db_usuario=credentials.usuario_de("Datos"),
-                           db_configurada=credentials.bd_configurada(), carpeta=credentials.CRED_DIR)
+    bases = [{"id": b, "usuario": credentials.usuario_de(b), "configurada": credentials.existe(b)}
+             for b in credentials.BASES_BD]
+    return render_template("perfil.html", bases=bases, db_configurada=credentials.bd_configurada(),
+                           carpeta=credentials.CRED_DIR)
 
 
 @bp.route("/api/credenciales/bd", methods=["POST"])
 @login_required
 def guardar_credenciales_bd():
     d = request.get_json(silent=True) or {}
+    base = d.get("base") or ""
     usuario, clave = (d.get("db_user") or "").strip(), d.get("db_pass") or ""
+    if base not in credentials.BASES_BD:
+        return _error("Base de datos no válida.")
     if not usuario or not clave:
         return _error("Usuario y contraseña son obligatorios.")
     try:
-        credentials.guardar_bd(usuario, clave)
+        credentials.guardar_bd(base, usuario, clave)
     except RuntimeError as exc:
         return _error(str(exc), 500)
-    log.info("Credenciales de BD actualizadas por %s", session["usuario"])
+    log.info("Credenciales de la BD %s actualizadas por %s", base, session["usuario"])
     return _ok()

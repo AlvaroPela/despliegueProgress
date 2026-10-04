@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Mi perfil{% endblock %}
-{% block page_sub %}Tu cuenta y las credenciales de la base de datos Progress, guardadas cifradas.{% endblock %}
+{% block page_sub %}Tu cuenta y las credenciales de las bases de datos Progress (cada base tiene las suyas), guardadas cifradas.{% endblock %}
 
 {% block content %}
 <div class="row g-3">
@@ -13,32 +13,39 @@
         </div>
     </div>
     <div class="col-lg-8">
-        <form class="card-soft" id="formBD" autocomplete="off">
+        {% set info = {
+            'Datos': ('BdAgencias.db', 'datos'),
+            'Seguimiento': ('Seguimiento.db', 'seguimiento'),
+        } %}
+        {% for b in bases %}
+        {% set archivo, ld = info[b.id] %}
+        <form class="card-soft form-bd {{ 'mt-3' if not loop.first }}" data-base="{{ b.id }}" autocomplete="off">
             <div class="card-head">
-                <h2><i class="bi bi-database-lock"></i>Base de datos Progress</h2>
-                {% if db_configurada %}<span class="badge-status exito">Configuradas</span>{% else %}<span class="badge-status fallo">Sin configurar</span>{% endif %}
+                <h2><i class="bi bi-database-lock"></i>BD «{{ ld }}» <span class="card-sub ms-1">{{ archivo }}</span></h2>
+                {% if b.configurada %}<span class="badge-status exito">Configurada</span>{% else %}<span class="badge-status fallo">Sin configurar</span>{% endif %}
             </div>
             <div class="card-body-pad">
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label" for="db_user">Usuario de BD</label>
-                        <input class="form-control" id="db_user" value="{{ db_usuario }}" required autocomplete="off">
+                        <label class="form-label" for="user{{ b.id }}">Usuario</label>
+                        <input class="form-control" id="user{{ b.id }}" name="db_user" value="{{ b.usuario }}" required autocomplete="off">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label" for="db_pass">Contraseña de BD</label>
-                        <input class="form-control" type="password" id="db_pass" required autocomplete="new-password" placeholder="{{ '••••••••  (escribe para reemplazar)' if db_configurada }}">
+                        <label class="form-label" for="pass{{ b.id }}">Contraseña</label>
+                        <input class="form-control" type="password" id="pass{{ b.id }}" name="db_pass" required autocomplete="new-password" placeholder="{{ '••••••••  (escribe para reemplazar)' if b.configurada }}">
                     </div>
-                </div>
-                <div class="banner info mt-3 mb-0">
-                    <i class="bi bi-shield-lock"></i>
-                    <div class="banner-body">Se cifran con DPAPI de Windows y solo las puede descifrar <b>el usuario de Windows que ejecuta este servicio</b>.
-                        <div class="small mt-1">Ubicación: <code>{{ carpeta }}</code></div></div>
                 </div>
             </div>
             <div class="card-foot text-end">
-                <button class="btn btn-brand" type="submit"><i class="bi bi-save me-1"></i>Guardar credenciales</button>
+                <button class="btn btn-brand" type="submit"><i class="bi bi-save me-1"></i>Guardar credenciales de «{{ ld }}»</button>
             </div>
         </form>
+        {% endfor %}
+        <div class="banner info mt-3 mb-0">
+            <i class="bi bi-shield-lock"></i>
+            <div class="banner-body">Se cifran con DPAPI de Windows y solo las puede descifrar <b>el usuario de Windows que ejecuta este servicio</b>.
+                <div class="small mt-1">Ubicación: <code>{{ carpeta }}</code></div></div>
+        </div>
     </div>
 </div>
 {% endblock %}

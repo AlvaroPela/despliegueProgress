@@ -45,9 +45,10 @@ def revisar_entorno(con_red=True):
                          COMPILAR_P_PATH))
     checks.append(_check("prowin", "OpenEdge (prowin.exe)",
                          "ok" if os.path.exists(cfg["ProgressExe"]) else "error", cfg["ProgressExe"]))
-    checks.append(_check("creds", "Credenciales de base de datos",
-                         "ok" if credentials.bd_configurada() else "error",
-                         "Configuradas" if credentials.bd_configurada() else "Faltan: Perfil > Base de datos"))
+    for base in credentials.BASES_BD:
+        ok = credentials.existe(base)
+        checks.append(_check(f"creds_{base.lower()}", f"Credenciales BD «{base.lower()}»", "ok" if ok else "error",
+                             "Configuradas" if ok else "Faltan: Mi perfil > Bases de datos"))
     checks.append(_check("ini", "Archivo INI de Progress",
                          "ok" if os.path.exists(cfg["ProgressIni"]) else "warn", cfg["ProgressIni"]))
     checks.append(_check("rutan", "Unidad de fuentes en red",
