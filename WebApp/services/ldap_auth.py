@@ -3,6 +3,8 @@ import logging
 import secrets
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturoVencido
 
 import ldap3
 from ldap3.utils.conv import escape_filter_chars
@@ -14,6 +16,21 @@ log = logging.getLogger(__name__)
 
 class AuthError(Exception):
     pass
+
+
+# Límite total para hablar con AD: si el directorio no responde, el login no puede quedarse colgado.
+LIMITE_AD_S = 20
+_pool_ad = ThreadPoolExecutor(max_workers=8, thread_name_prefix="ldap")
+
+
+def _con_limite(funcion, *args):
+    futuro = _pool_ad.submit(funcion, *args)
+    try:
+        return futuro.result(timeout=LIMITE_AD_S)
+    except FuturoVencido:
+        log.error("El directorio activo no respondió en %s s (%s)", LIMITE_AD_S, funcion.__name__)
+        raise AuthError(f"El directorio activo ({load_config()['LdapServer']}) no respondió en {LIMITE_AD_S} segundos. "
+                        "Verifica en Ajustes > Acceso el servidor LDAP o inténtalo de nuevo.")
 
 
 # Credenciales de AD de los administradores con sesión abierta, SOLO en memoria (nunca en disco):
@@ -62,7 +79,11 @@ def autenticar(usuario, clave):
         return {"usuario": "admin.pruebas", "nombre": "Administrador (pruebas)", "correo": "", "login": None}
 
     login = usuario if ("\\" in usuario or "@" in usuario) else f"{cfg['LdapDominio']}\\{usuario}"
-    corto = normalizar_usuario(usuario)
+    return _con_limite(_autenticar_ad, cfg, login, clave)
+
+
+def _autenticar_ad(cfg, login, clave):
+    corto = normalizar_usuario(login)
     server, conn = _conectar(cfg, login, clave)
 
     nombre, correo = corto, ""
@@ -77,18 +98,26 @@ def autenticar(usuario, clave):
         log.warning("No se pudo leer el nombre del usuario %s en AD", corto)
     finally:
         conn.unbind()
+    log.info("Login AD de %s completado", corto)
     return {"usuario": corto, "nombre": nombre, "correo": correo, "login": login}
 
 
 def _conectar(cfg, login, clave):
     servidor = cfg["LdapServer"]
+    inicio = time.monotonic()
+    log.info("Conectando con LDAP %s como %s...", servidor, login)
     try:
-        server = ldap3.Server(servidor, get_info=ldap3.ALL, connect_timeout=4)
-        return server, ldap3.Connection(server, user=login, password=clave, auto_bind=True, receive_timeout=6)
+        # get_info=DSA lee solo el rootDSE (defaultNamingContext). ALL descargaba el esquema completo de AD,
+        # que en redes lentas puede tardar muchísimo.
+        server = ldap3.Server(servidor, get_info=ldap3.DSA, connect_timeout=5)
+        conn = ldap3.Connection(server, user=login, password=clave, auto_bind=True, receive_timeout=10)
+        log.info("LDAP %s: autenticado en %.1f s", servidor, time.monotonic() - inicio)
+        return server, conn
     except ldap3.core.exceptions.LDAPBindError:
+        log.info("LDAP %s: credenciales rechazadas para %s (%.1f s)", servidor, login, time.monotonic() - inicio)
         raise AuthError("Usuario o contraseña incorrectos.")
     except Exception as exc:
-        log.exception("Fallo conectando con LDAP %s", servidor)
+        log.exception("Fallo conectando con LDAP %s tras %.1f s", servidor, time.monotonic() - inicio)
         raise AuthError(f"No fue posible conectar con el directorio ({servidor}): {exc}")
 
 
@@ -111,7 +140,10 @@ def buscar(termino, token, demo=False, limite=10):
         sesion = _sesiones_ad.get(token)
     if not sesion or sesion[2] < time.time():
         raise AuthError("Para consultar el Directorio Activo vuelve a iniciar sesión (la sesión del servicio se reinició).")
+    return _con_limite(_buscar_ad, cfg, sesion, termino, limite)
 
+
+def _buscar_ad(cfg, sesion, termino, limite):
     server, conn = _conectar(cfg, sesion[0], sesion[1])
     t = escape_filter_chars(termino)
     filtro = (f"(&(objectCategory=person)(objectClass=user)"

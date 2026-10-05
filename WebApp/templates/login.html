@@ -68,6 +68,7 @@ document.getElementById('verClave').addEventListener('click', function () {
 document.querySelector('form').addEventListener('submit', function () {
     const b = document.getElementById('btnIngresar');
     b.disabled = true; b.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Validando...';
+    setTimeout(() => { b.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Esperando al directorio activo...'; }, 6000);
 });
 </script>
 </body>
