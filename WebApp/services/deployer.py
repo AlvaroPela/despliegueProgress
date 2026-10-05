@@ -99,7 +99,7 @@ class Run:
         data = {
             "step": paso, "step_name": self.nombre_paso, "details": detalle, "status": estado,
             "elapsed": int(time.time() - self.inicio), "advertencias": len(self.advertencias),
-            "id": self.id,
+            "id": self.id, "versiones": [{"programa": n, "version": v} for n, v in self.versiones.items()],
         }
         tmp = self.progress_path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
@@ -257,13 +257,15 @@ def _ejecutar(run):
         _etapa4(run, estado)
         run.log("PROCESO DE DESPLIEGUE FINALIZADO")
         detalle = " | ".join(run.advertencias)[:600]
-        _registrar(run, Estado=estado, Detalle=detalle, Duracion=run.duracion())
+        _registrar(run, Estado=estado, Detalle=detalle, Duracion=run.duracion(),
+                   Versiones=history.versiones_texto(run.versiones), Version_Escala=history.VERSION_PENDIENTE)
         run.progreso(5, "Despliegue completado" + (" con advertencias" if run.advertencias else ""),
                      "warning" if run.advertencias else "success")
     except DeployError as exc:
         run.log(str(exc), "ERROR")
         _notificar_fallo(run, exc.estado, str(exc))
-        _registrar(run, Estado=exc.estado, Detalle=str(exc)[:600], Duracion=run.duracion())
+        _registrar(run, Estado=exc.estado, Detalle=str(exc)[:600], Duracion=run.duracion(),
+                   Versiones=history.versiones_texto(run.versiones))
         run.progreso(run.paso or 1, str(exc), "error")
     except Exception as exc:  # error inesperado: nunca dejar el registro "En Proceso"
         run.log("Error inesperado:\n" + traceback.format_exc(), "ERROR")
@@ -374,6 +376,11 @@ def _leer_desde(ruta, offset):
         return ""
 
 
+def _errores_compilacion(texto):
+    """Mensajes 'Detalle:' que compilar.p escribe debajo de cada [ERROR]."""
+    return [l.split("Detalle:", 1)[1].strip() for l in texto.splitlines() if "Detalle:" in l]
+
+
 def _etapa2(run):
     cfg = run.cfg
     run.progreso(2, "Leyendo credenciales de base de datos...")
@@ -393,7 +400,7 @@ def _etapa2(run):
     rama_ref = run.ramas[0]
     carpeta = os.path.join(run.dir_caso, rama_ref, "compilados")
     log_compilacion = os.path.join(carpeta, "compilacion.log")
-    fallidos = []
+    fallidos = {}  # programa -> motivo resumido
 
     for i, nombre in enumerate(run.fuentes, 1):
         run.progreso(2, f"[{i}/{len(run.fuentes)}] Compilando {nombre}...")
@@ -417,14 +424,17 @@ def _etapa2(run):
             codigo, salida = res.returncode, (res.stdout + res.stderr).strip()
         except subprocess.TimeoutExpired:
             run.log(f"{nombre}: tiempo de espera agotado ({cfg['TimeoutCompilacion']} s)", "ERROR")
-            fallidos.append(nombre)
+            fallidos[nombre] = f"tiempo de espera agotado ({cfg['TimeoutCompilacion']} s)"
             continue
         except OSError as exc:
             raise DeployError("Error", f"No se pudo ejecutar prowin.exe: {exc}")
 
         detalle_progress = _leer_desde(log_compilacion, offset)
-        if detalle_progress:
-            run.log(detalle_progress)
+        for linea in detalle_progress.splitlines():
+            if "[WARN]" in linea:  # las advertencias del compilador no detienen el despliegue
+                run.advertir(f"{nombre}: advertencia del compilador: {linea.split('[WARN]', 1)[1].strip()}")
+            else:
+                run.log(linea.strip(), "ERROR" if ("[ERROR]" in linea or "Detalle:" in linea) else "INFO")
         if salida:
             run.log("Salida de prowin: " + salida, "DEBUG")
         r_generado = os.path.join(carpeta, os.path.splitext(nombre)[0] + ".r")
@@ -432,16 +442,23 @@ def _etapa2(run):
             run.exitosos.append(os.path.basename(r_generado))
             run.log(f"{nombre} compilado correctamente")
         else:
-            fallidos.append(nombre)
+            errores = _errores_compilacion(detalle_progress)
             if "(710)" in salida:
-                run.log(f"{nombre}: la base de datos rechazó el usuario o la contraseña (error 710). Revisa en Mi perfil "
-                        "las credenciales de la BD «datos» y de la BD «seguimiento» (son distintas).", "ERROR")
+                motivo = "la BD rechazó el usuario o la contraseña (error 710); revisa las credenciales en Mi perfil"
+            elif errores:
+                motivo = errores[0] + (f" (+{len(errores) - 1} error(es) más)" if len(errores) > 1 else "")
             elif not detalle_progress:
-                run.log(f"{nombre}: no se generó compilacion.log (código {codigo}). Posible fallo de conexión a la BD, "
-                        "credenciales inválidas o ruta INI inaccesible.", "ERROR")
+                motivo = (f"Progress no generó compilacion.log (código {codigo}): posible fallo de conexión a la BD, "
+                          "credenciales inválidas o ruta INI inaccesible")
+            else:
+                motivo = "no se generó el archivo .r"
+            fallidos[nombre] = motivo
+            run.log(f"{nombre}: NO COMPILÓ. {motivo}", "ERROR")
 
     if fallidos:
-        raise DeployError("Fallo Compilación", "Fallaron: " + ", ".join(fallidos) + ". Revisa el log técnico.")
+        resumen = "; ".join(f"{n}: {m}" for n, m in fallidos.items())
+        raise DeployError("Fallo Compilación",
+                          f"No compiló {len(fallidos)} de {len(run.fuentes)} programa(s), no se desplegó nada. {resumen}")
 
     for rama in run.ramas[1:]:  # misma compilación para las demás ramas
         for r in run.exitosos:
@@ -564,7 +581,8 @@ def _html_reporte(run, estado, mensaje=""):
         _fila("Duración", run.duracion()),
         _fila("Servidores OK", f"{ok} / {len(run.targets)}"),
         _fila("Backup previo", html.escape(run.dir_backup) if run.backups else "Sin versión previa / omitido"),
-        _fila("Verificación en Escala", "Pendiente de confirmación manual"),
+        _fila("Versión en Escala", "<span style='color:#b26a00'>PENDIENTE: actualizar manualmente y confirmar en el sistema</span>"
+              if estado.startswith("Exitoso") else "No aplica (no se desplegó)"),
     ]
     progs = "".join(f"<li>{html.escape(n)} &mdash; v{html.escape(v)}</li>" for n, v in run.versiones.items())
     adv = "".join(f"<li>{html.escape(a)}</li>" for a in run.advertencias)

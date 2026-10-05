@@ -87,7 +87,9 @@
             html: `<div class="text-start small mb-2">Caso <b>${escapeHtml(caso)}</b> → <b>${escapeHtml(destinoTxt())}</b></div>
                    <div style="max-height:260px;overflow:auto" class="border rounded-3"><table class="table table-sm mb-0">
                    <thead><tr><th class="text-start">Programa</th><th class="text-end">Versión detectada</th></tr></thead><tbody>${filas}</tbody></table></div>
-                   <div class="small text-muted mt-2">Revisa que las versiones correspondan a lo que vas a publicar.</div>`,
+                   ${versiones.some((v) => v.version === 'No especificada')
+                       ? '<div class="banner bad small mt-2 mb-0 py-2"><i class="bi bi-exclamation-triangle"></i><div class="banner-body text-start">Hay programas sin versión detectable. Verifica que tengan la versión antes de desplegar.</div></div>' : ''}
+                   <div class="banner warn small mt-2 mb-0 py-2"><i class="bi bi-tag"></i><div class="banner-body text-start">Después del despliegue debes <b>actualizar estas versiones en Escala manualmente</b> y confirmarlo en el sistema.</div></div>`,
         });
         if (!r.isConfirmed) return;
 
@@ -109,6 +111,7 @@
         $('runHead').className = 'run-head px-4 py-3 d-flex align-items-center justify-content-between';
         $('runTitulo').innerHTML = '<i class="bi bi-rocket-takeoff me-2"></i>Despliegue en ejecución';
         $('runPie').classList.add('d-none');
+        $('runVersion').classList.add('d-none');
         for (let i = 1; i <= 4; i++) $('step' + i).className = 'step';
         runModal.show();
         clearInterval(timer);
@@ -138,6 +141,7 @@
 
         clearInterval(timer);
         $('runPie').classList.remove('d-none');
+        if (d.status !== 'error') mostrarVersion(d.versiones || []);
         const head = $('runHead');
         if (d.status === 'error') {
             head.classList.add('is-error');
@@ -152,4 +156,25 @@
     }
 
     $('btnVerLog').addEventListener('click', () => verLog(regId));
+
+    /* ---------- Versión en Escala (se actualiza a mano y se confirma aquí o en el historial) ---------- */
+    let versionesRun = [];
+    function mostrarVersion(versiones) {
+        versionesRun = versiones;
+        const panel = $('runVersion');
+        panel.classList.remove('d-none', 'hecho');
+        $('runVersionTitulo').textContent = 'Pendiente: actualizar las versiones en Escala';
+        $('runVersionLista').innerHTML = versiones.map((v) => `${escapeHtml(v.programa)} → <b>v${escapeHtml(v.version)}</b>`).join(' · ');
+        $('btnConfirmarVersion').classList.remove('d-none');
+    }
+    $('btnConfirmarVersion').addEventListener('click', async () => {
+        runModal.hide();
+        const r = await confirmarVersionEscala(regId, $('caso').value.trim(), versionesRun);
+        runModal.show();
+        if (r) {
+            $('runVersion').classList.add('hecho');
+            $('runVersionTitulo').textContent = `Versiones confirmadas por ${r.por}`;
+            $('btnConfirmarVersion').classList.add('d-none');
+        }
+    });
 })();

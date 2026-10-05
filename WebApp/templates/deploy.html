@@ -140,6 +140,16 @@
                     <div class="step" id="step3"><span class="num">3</span><span class="name">Backup y despliegue en servidores</span><i class="bi bi-check-circle-fill state"></i></div>
                     <div class="step" id="step4"><span class="num">4</span><span class="name">Notificación por correo</span><i class="bi bi-check-circle-fill state"></i></div>
                 </div>
+                <div class="version-panel mt-3 d-none" id="runVersion">
+                    <div class="d-flex gap-2 align-items-start">
+                        <i class="bi bi-tag fs-5"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold" id="runVersionTitulo">Pendiente: actualizar las versiones en Escala</div>
+                            <div class="small" id="runVersionLista"></div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-brand w-100 mt-2" id="btnConfirmarVersion"><i class="bi bi-check2-square me-1"></i>Ya las actualicé: confirmar</button>
+                </div>
             </div>
             <div class="modal-footer border-0 justify-content-between d-none" id="runPie" style="background:var(--surface-2)">
                 <button type="button" class="btn btn-ghost" id="btnVerLog"><i class="bi bi-terminal me-1"></i>Ver log técnico</button>

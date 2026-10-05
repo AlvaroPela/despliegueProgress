@@ -1,13 +1,15 @@
 """Nuevo despliegue, progreso y logs."""
+import html
 import json
 import logging
 import os
+import threading
 
 from flask import Blueprint, Response, jsonify, render_template, request, session
 
 from config import LOG_DIR
 from routes.helpers import login_required, rol_requerido
-from services import credentials, deployer, history, versions
+from services import credentials, deployer, history, mailer, versions
 from services.excel import ArchivoBloqueado
 
 log = logging.getLogger(__name__)
@@ -79,3 +81,29 @@ def ver_log(reg_id):
         return Response("No hay log disponible para este despliegue.", mimetype="text/plain; charset=utf-8", status=404)
     with open(ruta, "r", encoding="utf-8", errors="replace") as f:
         return Response(f.read(), mimetype="text/plain; charset=utf-8")
+
+
+@bp.route("/api/despliegues/<int:reg_id>/version-escala", methods=["POST"])
+@rol_requerido("Administrador", "Operador")
+def confirmar_version_escala(reg_id):
+    """Confirma que las versiones del despliegue ya se actualizaron a mano en Escala."""
+    try:
+        registro = history.confirmar_version(reg_id, session["usuario"])
+    except ValueError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    log.info("Versiones del caso %s confirmadas en Escala por %s", registro["Caso"], session["usuario"])
+    threading.Thread(target=_avisar_confirmacion, args=(registro,), daemon=True).start()
+    return jsonify({"status": "success", "por": registro["Version_Confirmada_Por"], "en": registro["Version_Confirmada_En"]})
+
+
+def _avisar_confirmacion(registro):
+    filas = "".join(f"<li>{html.escape(v['programa'])} &mdash; v{html.escape(v['version'])}</li>"
+                    for v in registro["ListaVersiones"])
+    cuerpo = (f"<div style='font-family:Segoe UI,Arial,sans-serif'><h3 style='color:#2e7d32'>Versiones actualizadas en Escala</h3>"
+              f"<p>Caso <b>{html.escape(str(registro['Caso']))}</b> ({html.escape(str(registro['Destino']))}). "
+              f"Confirmado por <b>{html.escape(str(registro['Version_Confirmada_Por']))}</b> el {registro['Version_Confirmada_En']}.</p>"
+              f"<ul>{filas}</ul></div>")
+    try:
+        mailer.enviar(f"[Versión confirmada] Despliegue caso {registro['Caso']}", cuerpo)
+    except Exception as exc:
+        log.warning("No se envió el correo de confirmación de versión: %s", exc)

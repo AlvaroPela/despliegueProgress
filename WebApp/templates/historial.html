@@ -19,15 +19,16 @@
             <button type="button" data-estado="exito">Exitosos</button>
             <button type="button" data-estado="fallo">Con fallos</button>
             <button type="button" data-estado="proceso">En proceso</button>
+            <button type="button" data-estado="version">Versión pendiente{% if stats.versiones_pendientes %} <span class="badge-role ms-1">{{ stats.versiones_pendientes }}</span>{% endif %}</button>
         </div>
         <span class="text-muted small ms-auto" id="contador"></span>
     </div>
     <div class="table-responsive">
         <table class="table table-modern" id="tabla">
-            <thead><tr><th>#</th><th>Caso</th><th>Usuario</th><th>Fecha</th><th>Destino</th><th>Estado</th><th>Duración</th><th>Detalle / error</th><th class="text-end">Log</th></tr></thead>
+            <thead><tr><th>#</th><th>Caso</th><th>Usuario</th><th>Fecha</th><th>Destino</th><th>Estado</th><th>Duración</th><th>Versión Escala</th><th>Detalle / error</th><th class="text-end">Log</th></tr></thead>
             <tbody>
             {% for r in registros %}
-                <tr data-clase="{{ r.Clase }}" data-texto="{{ (r.Caso ~ ' ' ~ r.Usuario ~ ' ' ~ r.Detalle ~ ' ' ~ r.Estado ~ ' ' ~ r.Destino) | lower }}">
+                <tr data-clase="{{ r.Clase }}" data-version="{{ r.Version_Escala | lower }}" data-texto="{{ (r.Caso ~ ' ' ~ r.Usuario ~ ' ' ~ r.Detalle ~ ' ' ~ r.Estado ~ ' ' ~ r.Destino) | lower }}">
                     <td class="text-muted num">{{ r.ID }}</td>
                     <td class="fw-bold">{{ r.Caso }}</td>
                     <td>{{ r.Usuario }}</td>
@@ -35,6 +36,16 @@
                     <td>{{ r.Destino or '—' }}</td>
                     <td>{{ estado(r) }}</td>
                     <td class="text-muted num">{{ r.Duracion or '—' }}</td>
+                    <td class="text-nowrap">
+                        {% if r.Version_Escala == 'Pendiente' %}
+                            {% if sesion_rol in ('Administrador', 'Operador') %}
+                            <button class="btn btn-sm btn-ghost" data-confirmar-version="{{ r.ID }}" data-caso="{{ r.Caso }}" data-versiones='{{ r.ListaVersiones | tojson }}'
+                                title="Confirmar que se actualizaron las versiones en Escala"><span class="badge-status pendiente">Pendiente</span><i class="bi bi-check2-square ms-1"></i></button>
+                            {% else %}<span class="badge-status pendiente">Pendiente</span>{% endif %}
+                        {% elif r.Version_Escala == 'Confirmada' %}
+                            <span class="badge-status exito" title="Confirmada por {{ r.Version_Confirmada_Por }} el {{ r.Version_Confirmada_En }}">Confirmada</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
                     <td>
                         {% if r.Detalle %}<div class="cell-detail {{ 'text-danger' if r.Clase == 'fallo' }}" title="{{ r.Detalle }}">{{ r.Detalle }}</div>
                         {% else %}<span class="text-muted">—</span>{% endif %}

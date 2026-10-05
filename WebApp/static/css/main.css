@@ -173,6 +173,7 @@ code { color: var(--brand-dark); background: var(--brand-softer); padding: .05re
 .badge-status.fallo { background: var(--bad-bg); color: var(--bad); }
 .badge-status.proceso { background: var(--info-bg); color: var(--info); }
 .badge-status.proceso::before { animation: pulse 1.2s infinite; }
+.badge-status.pendiente { background: var(--warn-bg); color: var(--warn); }
 .badge-status.neutro { background: #eef1ec; color: var(--muted); }
 .badge-role { display: inline-block; padding: .2rem .6rem; border-radius: 6px; font-size: .72rem; font-weight: 700; background: var(--brand-soft); color: var(--brand-dark); }
 @keyframes pulse { 50% { opacity: .25; } }
@@ -410,3 +411,11 @@ body.embed .content { padding-top: 1rem; }
 .ad-ficha dl { display: grid; grid-template-columns: auto 1fr; gap: .1rem .7rem; margin: .35rem 0 0; font-size: .8rem; }
 .ad-ficha dt { color: var(--muted); font-weight: 500; }
 .ad-ficha dd { margin: 0; font-weight: 600; word-break: break-all; }
+
+/* Confirmación de versiones en Escala ------------------------------------- */
+.ver-lista { display: flex; flex-direction: column; gap: .4rem; max-height: 280px; overflow-y: auto; }
+.ver-check { display: flex; align-items: center; gap: .7rem; padding: .55rem .75rem; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; margin: 0; }
+.ver-check:has(input:checked) { border-color: #b9d6a6; background: var(--brand-softer); }
+.ver-check .form-check-input { margin: 0; flex: none; }
+.version-panel { border: 1px solid #f3dcae; background: var(--warn-bg); border-radius: var(--radius); padding: .85rem 1rem; }
+.version-panel.hecho { border-color: #cfe3c1; background: var(--brand-softer); }

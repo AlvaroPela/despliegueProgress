@@ -27,7 +27,8 @@ def menu():
 @bp.route("/historial")
 @login_required
 def historial():
-    return render_template("historial.html", registros=history.listar())
+    registros = history.listar()
+    return render_template("historial.html", registros=registros, stats=history.estadisticas(registros))
 
 
 @bp.route("/informes")

@@ -10,7 +10,8 @@
         const q = texto.value.trim().toLowerCase();
         let visibles = 0;
         filas.forEach((f) => {
-            const ok = (!q || f.dataset.texto.includes(q)) && (!estado || f.dataset.clase === estado);
+            const coincideEstado = !estado || (estado === 'version' ? f.dataset.version === 'pendiente' : f.dataset.clase === estado);
+            const ok = (!q || f.dataset.texto.includes(q)) && coincideEstado;
             f.classList.toggle('d-none', !ok);
             if (ok) visibles++;
         });
@@ -23,9 +24,16 @@
         filtrar();
     }));
     texto.addEventListener('input', filtrar);
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-log]');
         if (b) verLog(b.dataset.log, b.dataset.titulo);
+        const v = e.target.closest('[data-confirmar-version]');
+        if (v && await confirmarVersionEscala(v.dataset.confirmarVersion, v.dataset.caso, JSON.parse(v.dataset.versiones))) {
+            setTimeout(() => location.reload(), 600);
+        }
     });
+    /* ?filtro=version abre directamente los pendientes (enlace desde Inicio) */
+    const inicial = new URLSearchParams(location.search).get('filtro');
+    botones.find((b) => inicial && b.dataset.estado === inicial)?.click();
     filtrar();
 })();

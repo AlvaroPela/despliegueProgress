@@ -3,6 +3,7 @@ DEFINE VARIABLE cOrigen     AS CHARACTER NO-UNDO.
 DEFINE VARIABLE cDestino    AS CHARACTER NO-UNDO.
 DEFINE VARIABLE cLogFile    AS CHARACTER NO-UNDO.
 DEFINE VARIABLE cDirectorio AS CHARACTER NO-UNDO.
+DEFINE VARIABLE iMsg        AS INTEGER   NO-UNDO.
 
 ASSIGN cParametros = SESSION:PARAMETER.
 
@@ -40,11 +41,27 @@ IF NUM-ENTRIES(cParametros, ";") >= 2 THEN DO:
 
     IF COMPILER:ERROR OR ERROR-STATUS:ERROR THEN DO:
         PUT UNFORMATTED "[ERROR] Fallo al compilar: " cOrigen SKIP.
-        IF ERROR-STATUS:NUM-MESSAGES > 0 THEN
-            PUT UNFORMATTED "        Detalle: " ERROR-STATUS:GET-MESSAGE(1) SKIP.
+        /* Todos los errores del compilador con archivo, linea y columna */
+        DO iMsg = 1 TO COMPILER:NUM-MESSAGES:
+            IF COMPILER:GET-MESSAGE-TYPE(iMsg) = 1 THEN
+                PUT UNFORMATTED "        Detalle: " COMPILER:GET-MESSAGE(iMsg)
+                    " (" COMPILER:GET-FILE-NAME(iMsg) " linea " COMPILER:GET-ERROR-ROW(iMsg)
+                    " columna " COMPILER:GET-ERROR-COLUMN(iMsg) ")" SKIP.
+        END.
+        IF COMPILER:NUM-MESSAGES = 0 THEN
+            DO iMsg = 1 TO ERROR-STATUS:NUM-MESSAGES:
+                PUT UNFORMATTED "        Detalle: " ERROR-STATUS:GET-MESSAGE(iMsg) SKIP.
+            END.
     END.
-    ELSE
+    ELSE DO:
         PUT UNFORMATTED "[OK] Compilado exitosamente: " cOrigen SKIP.
+        IF COMPILER:WARNING THEN
+            DO iMsg = 1 TO COMPILER:NUM-MESSAGES:
+                IF COMPILER:GET-MESSAGE-TYPE(iMsg) = 2 THEN
+                    PUT UNFORMATTED "[WARN] " COMPILER:GET-MESSAGE(iMsg)
+                        " (" COMPILER:GET-FILE-NAME(iMsg) " linea " COMPILER:GET-ERROR-ROW(iMsg) ")" SKIP.
+            END.
+    END.
 
     OUTPUT CLOSE.
 END.

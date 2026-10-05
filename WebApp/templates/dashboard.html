@@ -5,6 +5,14 @@
 {% block page_sub %}Resumen de la actividad de despliegues de Progress.{% endblock %}
 
 {% block content %}
+{% if stats.versiones_pendientes %}
+<div class="banner warn">
+    <i class="bi bi-tag"></i>
+    <div class="banner-body"><b>{{ stats.versiones_pendientes }} despliegue(s) con la versión pendiente de actualizar en Escala.</b>
+        Regístralas manualmente y confírmalo en el historial.</div>
+    <a class="btn btn-sm btn-ghost" href="{{ url_for('main.historial', filtro='version') }}">Revisar</a>
+</div>
+{% endif %}
 <div class="row g-3 mb-3">
     <div class="col-6 col-xl-3">{{ kpi('bi-collection', 'info', stats.total, 'Despliegues totales') }}</div>
     <div class="col-6 col-xl-3">{{ kpi('bi-check2-circle', 'ok', stats.exitosos, 'Exitosos · ' ~ stats.tasa_exito ~ '%') }}</div>

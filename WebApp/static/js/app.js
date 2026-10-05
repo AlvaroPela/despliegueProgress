@@ -66,6 +66,30 @@
         }
     };
 
+    /* ---- Confirmación manual de versiones en Escala (Historial y Nuevo despliegue) ---- */
+    window.confirmarVersionEscala = async function (id, caso, versiones) {
+        const filas = versiones.map((v, i) => `<label class="ver-check">
+                <input type="checkbox" class="form-check-input" data-v="${i}">
+                <span class="flex-grow-1 text-start fw-semibold">${escapeHtml(v.programa)}</span>
+                <span class="badge-status ${v.version === 'No especificada' ? 'fallo' : 'exito'}">v${escapeHtml(v.version)}</span>
+            </label>`).join('');
+        const r = await Alerta.fire({
+            title: 'Versiones en Escala', icon: 'question', width: '34rem', showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-check2-all"></i> Confirmar', cancelButtonText: 'Más tarde',
+            html: `<p class="small text-muted mb-2">Caso <b>${escapeHtml(caso)}</b>. Marca cada programa cuando hayas registrado su versión en Escala.</p>
+                   <div class="ver-lista">${filas || '<div class="text-muted small">Sin detalle de programas.</div>'}</div>
+                   <p class="small text-muted mt-2 mb-0">Quedará registrado quién confirmó y cuándo, y se notificará por correo.</p>`,
+            preConfirm: async () => {
+                const checks = [...Swal.getHtmlContainer().querySelectorAll('[data-v]')];
+                if (checks.some((c) => !c.checked)) { Swal.showValidationMessage('Marca todos los programas para confirmar.'); return false; }
+                try { return await api(`/api/despliegues/${id}/version-escala`, { method: 'POST', json: {} }); }
+                catch (e) { Swal.showValidationMessage(e.message); return false; }
+            },
+        });
+        if (r.isConfirmed) toast('Versiones confirmadas en Escala');
+        return r.isConfirmed ? r.value : null;
+    };
+
     /* ---- Gráficos (Chart.js) con estilo común ---- */
     window.COLORES = { ok: VERDE, bad: '#e05a5a', paleta: [VERDE, '#e05a5a', '#e0a21a', '#3b82c4', '#8a6bbf', '#8c9a86', '#2e9c9c'] };
     window.estiloGraficos = function () {

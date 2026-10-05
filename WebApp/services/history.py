@@ -10,10 +10,44 @@ from services import excel
 
 log = logging.getLogger(__name__)
 
-COLUMNAS = ["ID", "Caso", "Usuario", "Fecha", "Destino", "Estado", "Detalle", "Duracion", "Log_File"]
+COLUMNAS = ["ID", "Caso", "Usuario", "Fecha", "Destino", "Estado", "Detalle", "Duracion", "Log_File",
+            "Versiones", "Version_Escala", "Version_Confirmada_Por", "Version_Confirmada_En"]
 _lock = threading.RLock()
 
 EN_PROCESO = "En Proceso"
+
+# Las versiones de Escala se actualizan a mano: cada despliegue exitoso queda "Pendiente"
+# hasta que alguien confirma en la app que ya registró las versiones.
+VERSION_PENDIENTE = "Pendiente"
+VERSION_CONFIRMADA = "Confirmada"
+
+
+def versiones_texto(versiones):
+    return "; ".join(f"{n}={v}" for n, v in versiones.items())
+
+
+def versiones_dict(texto):
+    pares = (p.split("=", 1) for p in str(texto or "").split(";") if "=" in p)
+    return [{"programa": n.strip(), "version": v.strip()} for n, v in pares]
+
+
+def obtener(registro_id):
+    return next((r for r in listar() if str(r["ID"]) == str(registro_id)), None)
+
+
+def confirmar_version(registro_id, usuario):
+    """Marca que las versiones del despliegue ya se actualizaron en Escala. Devuelve el registro."""
+    with _lock:
+        registro = obtener(registro_id)
+        if not registro:
+            raise ValueError("Despliegue no encontrado.")
+        if registro["Version_Escala"] == VERSION_CONFIRMADA:
+            raise ValueError(f"Ya fue confirmado por {registro['Version_Confirmada_Por']} el {registro['Version_Confirmada_En']}.")
+        if registro["Version_Escala"] != VERSION_PENDIENTE:
+            raise ValueError("Este despliegue no tiene versiones pendientes de actualizar en Escala.")
+        actualizar(int(registro_id), Version_Escala=VERSION_CONFIRMADA, Version_Confirmada_Por=usuario,
+                   Version_Confirmada_En=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        return obtener(registro_id)
 
 
 def clasificar(estado):
@@ -73,6 +107,7 @@ def listar():
     registros = df.to_dict("records")
     for r in registros:
         r["Clase"] = clasificar(r["Estado"])
+        r["ListaVersiones"] = versiones_dict(r["Versiones"])
     return registros
 
 
@@ -102,6 +137,7 @@ def estadisticas(registros=None):
     terminados = exitosos + fallidos
     return {
         "total": total, "exitosos": exitosos, "fallidos": fallidos, "en_proceso": proceso,
+        "versiones_pendientes": sum(1 for r in registros if r["Version_Escala"] == VERSION_PENDIENTE),
         "tasa_exito": round(exitosos * 100 / terminados) if terminados else 0,
     }
 
