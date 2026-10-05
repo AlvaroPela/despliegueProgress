@@ -21,7 +21,7 @@ from datetime import datetime
 
 from config import COMPILAR_P_PATH, LOG_DIR, load_config, load_servidores
 from services import credentials, history, mailer, versions
-from services.system import extraer_ip, ping
+from services.system import extraer_host, ping, resolver_ip
 
 log = logging.getLogger(__name__)
 
@@ -132,23 +132,30 @@ def resolver_destinos(destino, ips_texto, servidores):
         tipo, ramas, targets = "Todos", ["DG", "Oficinas"], dg + oficinas
     elif destino == "4":
         tipo, ramas, targets = "Marcha Blanca", [], []
-        for crudo in (ips_texto or "").split(","):
-            ip = extraer_ip(crudo.strip())
-            if not ip:
+        candidatos = [(t, "DG") for t in dg] + [(t, "Oficinas") for t in oficinas]
+        ips_cache = {}
+
+        def ip_de(host):
+            if host not in ips_cache:
+                ips_cache[host] = resolver_ip(host)
+            return ips_cache[host]
+
+        for crudo in (ips_texto or "").replace(";", ",").split(","):
+            buscado = extraer_host(crudo.strip())
+            if not buscado:
                 continue
-            encontrado = next((t for t in dg if extraer_ip(t) == ip), None)
-            rama = "DG"
-            if not encontrado:
-                encontrado = next((t for t in oficinas if extraer_ip(t) == ip), None)
-                rama = "Oficinas"
+            # 1) coincidencia directa por IP o hostname; 2) comparando las IPs resueltas por DNS
+            encontrado = next(((t, r) for t, r in candidatos if extraer_host(t).lower() == buscado.lower()), None)
+            if not encontrado and ip_de(buscado):
+                encontrado = next(((t, r) for t, r in candidatos if ip_de(extraer_host(t)) == ip_de(buscado)), None)
             if encontrado:
-                targets.append(encontrado)
-                if rama not in ramas:
-                    ramas.append(rama)
+                targets.append(encontrado[0])
+                if encontrado[1] not in ramas:
+                    ramas.append(encontrado[1])
             else:
-                advertencias.append(f"La IP {ip} no existe en servidores.json y fue omitida.")
+                advertencias.append(f"{buscado} no está registrado en Ajustes > Servidores y fue omitido.")
         if not targets:
-            raise ValueError("Ninguna de las IPs ingresadas está registrada en servidores.json.")
+            raise ValueError("Ninguno de los servidores ingresados (IP o hostname) está registrado en Ajustes > Servidores.")
     else:
         raise ValueError("Destino de despliegue no válido.")
 
@@ -446,7 +453,7 @@ def _etapa2(run):
 # Etapa 3: backup y despliegue
 # ----------------------------------------------------------------------------
 def _copiar_a_target(run, target, archivos, progreso):
-    ip = extraer_ip(target) or target
+    ip = extraer_host(target)
     resultado = {"target": target, "ip": ip, "estado": "ok", "copiados": 0, "errores": []}
     if not ping(ip):
         resultado["estado"] = "sin_ping"
@@ -488,7 +495,7 @@ def _etapa3(run):
     # --- Backup previo (protegido con ping) ---
     stamp = datetime.now().strftime("%Y-%m-%d_%H%M")
     base = run.targets[0]
-    ip_base = extraer_ip(base) or base
+    ip_base = extraer_host(base)
     run.progreso(3, f"Backup previo desde {ip_base}...")
     if ping(ip_base):
         dir_backup_local = os.path.join(cfg["RutaBackup"], f"{stamp}_{run.tipo.replace(' ', '')}")

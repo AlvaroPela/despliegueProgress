@@ -10,6 +10,46 @@
     ('Acceso', 'bi-shield-check', 'Acceso', 'Active Directory y rutinas'),
 ] %}
 
+{% macro lista_servidores(campo, titulo, icono, valores, placeholder, ayuda) %}
+<div class="card-soft srv-card mb-3" data-servidores="{{ campo }}">
+    <div class="card-head flex-wrap">
+        <h2><i class="bi {{ icono }}"></i>{{ titulo }} <span class="badge-role ms-1" data-contador>{{ valores | length }}</span></h2>
+        <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted" data-resumen></span>
+            <button class="btn btn-sm btn-ghost" type="button" data-verificar><i class="bi bi-broadcast me-1"></i>Verificar conexión</button>
+        </div>
+    </div>
+    <div class="toolbar">
+        <div class="input-group" style="flex:1 1 320px">
+            <input class="form-control mono" data-nuevo data-no-guardar placeholder="{{ placeholder }}" aria-label="Agregar servidor a {{ titulo }}">
+            <button class="btn btn-soft" type="button" data-agregar><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+        </div>
+        <div class="search" style="max-width:240px">
+            <i class="bi bi-search"></i><input type="search" class="form-control" data-filtro data-no-guardar placeholder="Filtrar..." aria-label="Filtrar">
+        </div>
+    </div>
+    <div class="form-hint px-3 pt-2">{{ ayuda }}</div>
+    <div class="table-responsive srv-scroll">
+        <table class="table table-modern">
+            <thead><tr><th style="width:40px"></th><th>Servidor</th><th>Hostname</th><th>IP</th><th class="text-end" style="width:60px"></th></tr></thead>
+            <tbody data-filas></tbody>
+        </table>
+    </div>
+    <textarea class="d-none" id="{{ campo }}" name="{{ campo }}">{{ valores | join('\n') }}</textarea>
+</div>
+{% endmacro %}
+
+{% macro lista_simple(campo, valores, tipo, placeholder, vacio) %}
+<div class="lista-editable" data-lista="{{ campo }}" data-tipo="{{ tipo }}" data-vacio="{{ vacio }}">
+    <div class="input-group mb-2">
+        <input class="form-control{{ ' mono' if tipo == 'rutina' }}" data-nuevo data-no-guardar placeholder="{{ placeholder }}" aria-label="{{ placeholder }}">
+        <button class="btn btn-soft" type="button" data-agregar><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+    </div>
+    <ul class="chip-list" data-items></ul>
+    <textarea class="d-none" id="{{ campo }}" name="{{ campo }}">{{ valores | join('\n') }}</textarea>
+</div>
+{% endmacro %}
+
 {% block content %}
 <form id="formAjustes" novalidate>
 <div class="row g-3">
@@ -58,21 +98,12 @@
 
         <!-- Servidores -->
         <div class="tab-pane fade" id="tabServidores" role="tabpanel">
-            <div class="card-soft">
-                <div class="card-head"><h2><i class="bi bi-hdd-network"></i>Servidores destino</h2><span class="card-sub">Uno por línea</span></div>
-                <div class="card-body-pad"><div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="servidores_dg">Dirección General — rutas UNC</label>
-                        <textarea class="form-control mono" id="servidores_dg" name="servidores_dg" rows="14">{{ servidores.DG | join('\n') }}</textarea>
-                        <div class="form-hint">Ej: <code>\\10.100.4.38\d$\Escala</code></div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="servidores_oficinas">Oficinas — IP</label>
-                        <textarea class="form-control mono" id="servidores_oficinas" name="servidores_oficinas" rows="14">{{ servidores.Oficinas | join('\n') }}</textarea>
-                        <div class="form-hint">Se completa como <code>\\IP\Escala</code>.</div>
-                    </div>
-                </div></div>
-            </div>
+            {{ lista_servidores('servidores_dg', 'Dirección General', 'bi-building', servidores.DG,
+                'Ruta UNC, ej: \\\\SRVDG01\\d$\\Escala',
+                'Escribe la ruta completa del recurso compartido; el servidor puede ir por IP o por hostname.') }}
+            {{ lista_servidores('servidores_oficinas', 'Oficinas', 'bi-shop', servidores.Oficinas,
+                'IP o hostname, ej: 10.2.0.2 o OFI02',
+                'Se despliega en \\\\servidor\\Escala. Al agregar se resuelve el nombre por DNS y se comprueba con ping.') }}
         </div>
 
         <!-- Correo -->
@@ -84,9 +115,8 @@
                     {{ campo('auth_tenant', 'Tenant ID (Directory)', cfg.Auth_Tenant, mono=True) }}
                     {{ campo('auth_client_id', 'Client ID (Application)', cfg.Auth_ClientID, mono=True) }}
                     <div class="col-12">
-                        <label class="form-label" for="destinatarios">Destinatarios de los informes</label>
-                        <textarea class="form-control" id="destinatarios" name="destinatarios" rows="4">{{ cfg.Destinatario | join('\n') }}</textarea>
-                        <div class="form-hint">Uno por línea o separados por coma.</div>
+                        <label class="form-label">Destinatarios de los informes</label>
+                        {{ lista_simple('destinatarios', cfg.Destinatario, 'correo', 'correo@confiar.coop', 'Sin destinatarios: no se enviarán informes.') }}
                     </div>
                 </div></div>
             </div>
@@ -135,7 +165,7 @@
             <div class="card-soft mt-3">
                 <div class="card-head"><h2><i class="bi bi-list-check"></i>Rutinas especiales</h2><span class="card-sub">Se copian a la carpeta de rutinas de red</span></div>
                 <div class="card-body-pad">
-                    <textarea class="form-control mono" id="rutinas_especiales" name="rutinas_especiales" rows="9" aria-label="Rutinas especiales">{{ cfg.RutinasEspeciales | join('\n') }}</textarea>
+                    {{ lista_simple('rutinas_especiales', cfg.RutinasEspeciales, 'rutina', 'Nombre del programa, ej: rutinas.p', 'No hay rutinas especiales.') }}
                 </div>
             </div>
         </div>

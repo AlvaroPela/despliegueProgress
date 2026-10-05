@@ -70,7 +70,7 @@
         if (!/^[\w\-]{1,40}$/.test(caso)) return toast('Ingresa un número de caso válido (letras, números, guion).', 'warn');
         if (!prin.length) return toast('Debes seleccionar al menos un programa .p o .w', 'warn');
         if (!destinoSel()) return toast('Selecciona el destino del despliegue.', 'warn');
-        if (destinoSel().value === '4' && !$('ips').value.trim()) return toast('Indica las IPs de la marcha blanca.', 'warn');
+        if (destinoSel().value === '4' && !$('ips').value.trim()) return toast('Indica los servidores (IP o hostname) de la marcha blanca.', 'warn');
 
         // 1) Versiones detectadas en los programas
         const fd = new FormData();

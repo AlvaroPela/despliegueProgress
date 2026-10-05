@@ -388,3 +388,25 @@ body.embed .content { padding-top: 1rem; }
     .save-bar { flex-direction: column; align-items: stretch; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Listas editables (Ajustes) ---------------------------------------------- */
+.chip-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip-item { display: inline-flex; align-items: center; gap: .3rem; background: var(--brand-softer); border: 1px solid var(--line); border-radius: 8px; padding: .25rem .3rem .25rem .65rem; font-size: .84rem; font-weight: 600; color: var(--text-2); }
+.chip-item button { border: 0; background: transparent; color: var(--subtle); width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; padding: 0; font-size: .7rem; }
+.chip-item button:hover { background: var(--bad-bg); color: var(--bad); }
+.chip-vacio { color: var(--muted); font-size: .84rem; padding: .3rem 0; }
+.srv-scroll { max-height: 460px; overflow-y: auto; }
+.srv-scroll thead th { position: sticky; top: 0; z-index: 1; }
+.dot.pend { background: #eef1ec; color: var(--subtle); }
+
+/* Búsqueda en el Directorio Activo (Usuarios) ----------------------------- */
+.ad-resultados { list-style: none; margin: .5rem 0 0; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); max-height: 260px; overflow-y: auto; }
+.ad-resultados li + li { border-top: 1px solid var(--line); }
+.ad-resultados button { width: 100%; border: 0; background: var(--surface); display: flex; gap: .7rem; align-items: center; padding: .6rem .8rem; text-align: left; }
+.ad-resultados button:hover:not(:disabled), .ad-resultados button:focus-visible { background: var(--brand-softer); }
+.ad-resultados button:disabled { opacity: .55; cursor: not-allowed; }
+.ad-resultados .meta { font-size: .76rem; color: var(--muted); }
+.ad-ficha { display: flex; gap: .9rem; align-items: center; padding: .9rem 1rem; border-radius: var(--radius); background: var(--brand-softer); border: 1px solid #cfe3c1; }
+.ad-ficha dl { display: grid; grid-template-columns: auto 1fr; gap: .1rem .7rem; margin: .35rem 0 0; font-size: .8rem; }
+.ad-ficha dt { color: var(--muted); font-weight: 500; }
+.ad-ficha dd { margin: 0; font-weight: 600; word-break: break-all; }

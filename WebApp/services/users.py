@@ -6,7 +6,7 @@ import pandas as pd
 from config import USUARIOS_PATH
 from services import excel
 
-COLUMNAS = ["ID", "Usuario", "Nombre", "Rol", "Estado"]
+COLUMNAS = ["ID", "Usuario", "Nombre", "Correo", "Cargo", "Area", "Rol", "Estado"]
 ROLES = ("Administrador", "Operador", "Consulta")
 _lock = threading.RLock()
 
@@ -27,8 +27,8 @@ def listar():
             return []
 
 
-def agregar(usuario, nombre, rol="Operador", estado="Activo"):
-    usuario = (usuario or "").strip()
+def agregar(usuario, nombre, rol="Operador", estado="Activo", correo="", cargo="", area=""):
+    usuario = (usuario or "").strip().split("\\")[-1]
     if not usuario:
         raise ValueError("El usuario es obligatorio.")
     if rol not in ROLES:
@@ -39,6 +39,7 @@ def agregar(usuario, nombre, rol="Operador", estado="Activo"):
             raise ValueError("El usuario ya existe.")
         nuevo_id = excel.siguiente_id(df)
         fila = {"ID": nuevo_id, "Usuario": usuario, "Nombre": (nombre or "").strip() or usuario,
+                "Correo": (correo or "").strip(), "Cargo": (cargo or "").strip(), "Area": (area or "").strip(),
                 "Rol": rol, "Estado": estado}
         _escribir(pd.concat([df, pd.DataFrame([fila])], ignore_index=True))
 

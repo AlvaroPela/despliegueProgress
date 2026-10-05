@@ -1,7 +1,9 @@
 """Utilidades de red y diagnóstico del entorno."""
 import os
 import re
+import socket
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 
 from config import COMPILAR_P_PATH, CONFIG_PATH, SERVIDORES_PATH, load_config
 from services import credentials
@@ -15,10 +17,56 @@ def extraer_ip(texto):
     return m.group(1) if m else None
 
 
+def extraer_host(entrada):
+    """Host de una entrada de servidores: '\\\\host\\recurso' -> 'host'; 'host' o IP -> igual."""
+    entrada = (entrada or "").strip()
+    if entrada.startswith("\\\\"):
+        return entrada[2:].split("\\")[0]
+    return entrada
+
+
+def resolver_ip(host):
+    """IP de un host (o la misma IP). None si el nombre no se puede resolver."""
+    ip = extraer_ip(host)
+    if ip and ip == host:
+        return ip
+    try:
+        return socket.gethostbyname(host)
+    except OSError:
+        return None
+
+
+def nombre_de(ip):
+    """Hostname (DNS inverso) de una IP, sin el dominio. Vacío si no tiene registro."""
+    try:
+        return socket.gethostbyaddr(ip)[0].split(".")[0].upper()
+    except OSError:
+        return ""
+
+
+def info_servidor(entrada, timeout_ms=800):
+    """Resuelve IP y hostname de una entrada (IP, hostname o ruta UNC) y comprueba si responde al ping."""
+    host = extraer_host(entrada)
+    ip = resolver_ip(host) if host else None
+    es_ip = bool(extraer_ip(host)) and extraer_ip(host) == host
+    hostname = (nombre_de(ip) if ip else "") if es_ip else host.split(".")[0].upper()
+    return {"entrada": entrada, "host": host, "ip": ip or "", "hostname": hostname,
+            "resuelto": bool(ip), "ping": bool(ip) and ping(ip, timeout_ms)}
+
+
+def info_servidores(entradas, hilos=32):
+    entradas = [e for e in entradas if (e or "").strip()]
+    if not entradas:
+        return []
+    with ThreadPoolExecutor(max_workers=min(hilos, len(entradas))) as pool:
+        return list(pool.map(info_servidor, entradas))
+
+
 def ping(host, timeout_ms=1000):
     try:
         return subprocess.run(
-            ["ping", "-n", "1", "-w", str(timeout_ms), host],
+            ["ping", "-n", "1", "-w", str(timeout_ms), host] if os.name == "nt"
+            else ["ping", "-c", "1", "-W", str(max(1, timeout_ms // 1000)), host],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=_NO_WINDOW, timeout=10,
         ).returncode == 0
     except Exception:

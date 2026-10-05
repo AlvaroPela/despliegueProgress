@@ -5,7 +5,8 @@ from flask import Blueprint, jsonify, render_template, request, session
 
 import config
 from routes.helpers import login_required, rol_requerido
-from services import credentials, mailer, users
+from services import credentials, ldap_auth, mailer, users
+from services.system import info_servidor, info_servidores
 
 log = logging.getLogger(__name__)
 bp = Blueprint("admin", __name__)
@@ -33,10 +34,25 @@ def usuarios():
 def agregar_usuario():
     d = request.get_json(silent=True) or {}
     try:
-        users.agregar(d.get("usuario"), d.get("nombre"), d.get("rol", "Operador"), d.get("estado", "Activo"))
+        users.agregar(d.get("usuario"), d.get("nombre"), d.get("rol", "Operador"), d.get("estado", "Activo"),
+                      correo=d.get("correo"), cargo=d.get("cargo"), area=d.get("area"))
     except ValueError as exc:
         return _error(str(exc))
     return _ok()
+
+
+@bp.route("/api/ad/buscar")
+@rol_requerido(*ADMIN)
+def buscar_en_ad():
+    try:
+        resultados = ldap_auth.buscar(request.args.get("q", ""), session.get("ad"),
+                                      demo=session.get("usuario") == "admin.pruebas")
+    except ldap_auth.AuthError as exc:
+        return _error(str(exc))
+    registrados = {str(u["Usuario"]).lower() for u in users.listar()}
+    for r in resultados:
+        r["registrado"] = r["usuario"].lower() in registrados
+    return _ok(resultados=resultados)
 
 
 @bp.route("/api/usuarios/<int:user_id>", methods=["PUT", "DELETE"])
@@ -97,6 +113,25 @@ def guardar_configuracion():
         return _error(f"Datos inválidos: {exc}")
     log.info("Configuración actualizada por %s", session["usuario"])
     return _ok()
+
+
+@bp.route("/api/servidores/estado", methods=["POST"])
+@rol_requerido(*ADMIN)
+def estado_servidores():
+    """Resuelve IP/hostname y hace ping a cada entrada (en paralelo)."""
+    entradas = (request.get_json(silent=True) or {}).get("entradas") or []
+    if not isinstance(entradas, list) or len(entradas) > 500:
+        return _error("Lista de servidores no válida.")
+    return _ok(servidores=info_servidores([str(e) for e in entradas]))
+
+
+@bp.route("/api/servidores/resolver", methods=["POST"])
+@rol_requerido(*ADMIN)
+def resolver_servidor():
+    entrada = str((request.get_json(silent=True) or {}).get("entrada") or "").strip()
+    if not entrada:
+        return _error("Escribe una IP, un hostname o una ruta UNC.")
+    return _ok(servidor=info_servidor(entrada))
 
 
 @bp.route("/api/smtp/secret", methods=["POST"])

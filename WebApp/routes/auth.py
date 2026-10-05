@@ -56,9 +56,12 @@ def login():
         return render_template("login.html", error=str(exc)), 401
 
     _intentos.pop(ip, None)
+    ldap_auth.olvidar_sesion(session.get("ad"))
     session.clear()
     session.permanent = True
     session.update(usuario=info["usuario"], nombre=info["nombre"], rol=rol)
+    if rol == "Administrador" and info.get("login"):  # para buscar en AD al agregar usuarios
+        session["ad"] = ldap_auth.recordar_sesion(info["login"], request.form.get("password", ""))
     log.info("Login: %s (%s)", info["usuario"], rol)
     destino = request.args.get("next", "")
     return redirect(destino if destino.startswith("/") and not destino.startswith("//") else url_for("main.menu"))
@@ -66,5 +69,6 @@ def login():
 
 @bp.route("/logout")
 def logout():
+    ldap_auth.olvidar_sesion(session.get("ad"))
     session.clear()
     return redirect(url_for("auth.login"))
