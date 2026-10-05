@@ -11,7 +11,7 @@ from services import excel
 log = logging.getLogger(__name__)
 
 COLUMNAS = ["ID", "Caso", "Usuario", "Fecha", "Destino", "Estado", "Detalle", "Duracion", "Log_File",
-            "Versiones", "Version_Escala", "Version_Confirmada_Por", "Version_Confirmada_En"]
+            "Versiones", "Version_Escala", "Version_Confirmada_Por", "Version_Confirmada_En", "Version_Evidencia"]
 _lock = threading.RLock()
 
 EN_PROCESO = "En Proceso"
@@ -35,7 +35,11 @@ def obtener(registro_id):
     return next((r for r in listar() if str(r["ID"]) == str(registro_id)), None)
 
 
-def confirmar_version(registro_id, usuario):
+def evidencias(registro):
+    return [n for n in str(registro.get("Version_Evidencia") or "").split(";") if n.strip()]
+
+
+def confirmar_version(registro_id, usuario, archivos_evidencia=()):
     """Marca que las versiones del despliegue ya se actualizaron en Escala. Devuelve el registro."""
     with _lock:
         registro = obtener(registro_id)
@@ -46,7 +50,8 @@ def confirmar_version(registro_id, usuario):
         if registro["Version_Escala"] != VERSION_PENDIENTE:
             raise ValueError("Este despliegue no tiene versiones pendientes de actualizar en Escala.")
         actualizar(int(registro_id), Version_Escala=VERSION_CONFIRMADA, Version_Confirmada_Por=usuario,
-                   Version_Confirmada_En=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                   Version_Confirmada_En=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                   Version_Evidencia=";".join(archivos_evidencia))
         return obtener(registro_id)
 
 

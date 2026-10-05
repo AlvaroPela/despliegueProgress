@@ -66,6 +66,19 @@
         }
     };
 
+    /* ---- Pantallazos: se reducen en el navegador para que quepan en el correo (Graph admite ~3 MB) ---- */
+    const MAX_TOTAL = 2_800_000, MAX_LADO = 1800;
+    async function prepararImagen(archivo) {
+        if (!archivo.type.startsWith('image/')) throw new Error(`${archivo.name || 'El archivo'} no es una imagen.`);
+        if (archivo.type === 'image/png' && archivo.size <= 700_000) return archivo;  // texto nítido: se deja en PNG
+        const img = await createImageBitmap(archivo);
+        const escala = Math.min(1, MAX_LADO / Math.max(img.width, img.height));
+        const canvas = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * escala), height: Math.round(img.height * escala) });
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise((ok) => canvas.toBlob(ok, 'image/jpeg', 0.86));
+        return new File([blob], 'pantallazo.jpg', { type: 'image/jpeg' });
+    }
+
     /* ---- Confirmación manual de versiones en Escala (Historial y Nuevo despliegue) ---- */
     window.confirmarVersionEscala = async function (id, caso, versiones) {
         const filas = versiones.map((v, i) => `<label class="ver-check">
@@ -73,21 +86,72 @@
                 <span class="flex-grow-1 text-start fw-semibold">${escapeHtml(v.programa)}</span>
                 <span class="badge-status ${v.version === 'No especificada' ? 'fallo' : 'exito'}">v${escapeHtml(v.version)}</span>
             </label>`).join('');
+        let imagenes = [];
+        let alPegar = null;
         const r = await Alerta.fire({
-            title: 'Versiones en Escala', icon: 'question', width: '34rem', showCancelButton: true,
+            title: 'Versiones en Escala', icon: 'question', width: '40rem', showCancelButton: true,
             confirmButtonText: '<i class="bi bi-check2-all"></i> Confirmar', cancelButtonText: 'Más tarde',
             html: `<p class="small text-muted mb-2">Caso <b>${escapeHtml(caso)}</b>. Marca cada programa cuando hayas registrado su versión en Escala.</p>
                    <div class="ver-lista">${filas || '<div class="text-muted small">Sin detalle de programas.</div>'}</div>
-                   <p class="small text-muted mt-2 mb-0">Quedará registrado quién confirmó y cuándo, y se notificará por correo.</p>`,
+                   <div class="text-start fw-semibold small mt-3 mb-1">Pantallazo de la versión actualizada</div>
+                   <label class="pegar-zona" tabindex="0">
+                       <input type="file" accept="image/png,image/jpeg" multiple hidden data-archivo>
+                       <i class="bi bi-clipboard-plus"></i>
+                       <span><b>Pega con Ctrl+V</b>, arrastra la imagen o haz clic para elegirla</span>
+                   </label>
+                   <div class="pegar-miniaturas" data-miniaturas></div>
+                   <p class="small text-muted mt-2 mb-0">Se adjunta en el correo de confirmación y queda guardado en el historial.</p>`,
+            didOpen: (popup) => {
+                const zona = popup.querySelector('.pegar-zona');
+                const mini = popup.querySelector('[data-miniaturas]');
+                const pintar = () => {
+                    mini.innerHTML = imagenes.map((f, i) => `<figure><img src="${URL.createObjectURL(f)}" alt="Pantallazo ${i + 1}">
+                        <button type="button" data-quitar-img="${i}" aria-label="Quitar"><i class="bi bi-x-lg"></i></button></figure>`).join('');
+                };
+                const agregar = async (archivos) => {
+                    for (const a of archivos) {
+                        if (imagenes.length >= 5) { Swal.showValidationMessage('Máximo 5 pantallazos.'); break; }
+                        try { imagenes.push(await prepararImagen(a)); Swal.resetValidationMessage(); }
+                        catch (e) { Swal.showValidationMessage(e.message); }
+                    }
+                    pintar();
+                };
+                alPegar = (e) => {
+                    const archivos = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
+                    if (archivos.length) { e.preventDefault(); agregar(archivos); }
+                };
+                document.addEventListener('paste', alPegar);
+                popup.querySelector('[data-archivo]').addEventListener('change', (e) => { agregar([...e.target.files]); e.target.value = ''; });
+                zona.addEventListener('dragover', (e) => { e.preventDefault(); zona.classList.add('drag'); });
+                zona.addEventListener('dragleave', () => zona.classList.remove('drag'));
+                zona.addEventListener('drop', (e) => { e.preventDefault(); zona.classList.remove('drag'); agregar([...e.dataTransfer.files]); });
+                mini.addEventListener('click', (e) => {
+                    const b = e.target.closest('[data-quitar-img]');
+                    if (b) { imagenes.splice(+b.dataset.quitarImg, 1); pintar(); }
+                });
+            },
+            willClose: () => document.removeEventListener('paste', alPegar),
             preConfirm: async () => {
                 const checks = [...Swal.getHtmlContainer().querySelectorAll('[data-v]')];
                 if (checks.some((c) => !c.checked)) { Swal.showValidationMessage('Marca todos los programas para confirmar.'); return false; }
-                try { return await api(`/api/despliegues/${id}/version-escala`, { method: 'POST', json: {} }); }
+                if (!imagenes.length) { Swal.showValidationMessage('Pega o adjunta el pantallazo de la versión actualizada en Escala.'); return false; }
+                if (imagenes.reduce((t, f) => t + f.size, 0) > MAX_TOTAL) { Swal.showValidationMessage('Los pantallazos superan 2,8 MB; quita alguno.'); return false; }
+                const fd = new FormData();
+                imagenes.forEach((f, i) => fd.append('evidencia', f, `pantallazo_${i + 1}.${f.type === 'image/png' ? 'png' : 'jpg'}`));
+                try { return await api(`/api/despliegues/${id}/version-escala`, { method: 'POST', form: fd }); }
                 catch (e) { Swal.showValidationMessage(e.message); return false; }
             },
         });
         if (r.isConfirmed) toast('Versiones confirmadas en Escala');
         return r.isConfirmed ? r.value : null;
+    };
+
+    /* ---- Ver los pantallazos guardados de una confirmación ---- */
+    window.verEvidencia = function (id, caso, cantidad, detalle) {
+        const imgs = Array.from({ length: cantidad }, (_, i) =>
+            `<a href="/api/despliegues/${id}/evidencia/${i + 1}" target="_blank" rel="noopener"><img class="evidencia-img" src="/api/despliegues/${id}/evidencia/${i + 1}" alt="Pantallazo ${i + 1}"></a>`).join('');
+        Alerta.fire({ title: `Versión confirmada · Caso ${escapeHtml(caso)}`, width: '60rem', showCloseButton: true, confirmButtonText: 'Cerrar',
+            html: `<p class="small text-muted">${escapeHtml(detalle)}</p>${imgs || '<p class="text-muted">Sin pantallazos.</p>'}` });
     };
 
     /* ---- Gráficos (Chart.js) con estilo común ---- */

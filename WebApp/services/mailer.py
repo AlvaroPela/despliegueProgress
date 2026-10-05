@@ -91,7 +91,9 @@ def _token(cfg, secret):
     return token
 
 
-def _send_mail(cfg, token, asunto, html, destinatarios):
+def _send_mail(cfg, token, asunto, html, destinatarios, adjuntos=None):
+    """adjuntos: lista de dicts {nombre, tipo, datos (bytes), cid}. Con 'cid' la imagen se ve dentro del
+    cuerpo (<img src="cid:...">). sendMail admite hasta ~3 MB de adjuntos en una sola petición."""
     remitente = cfg["UsuarioSmtp"]
     mensaje = {
         "message": {
@@ -101,6 +103,12 @@ def _send_mail(cfg, token, asunto, html, destinatarios):
         },
         "saveToSentItems": False,
     }
+    if adjuntos:
+        mensaje["message"]["attachments"] = [{
+            "@odata.type": "#microsoft.graph.fileAttachment", "name": a["nombre"], "contentType": a["tipo"],
+            "contentBytes": base64.b64encode(a["datos"]).decode("ascii"),
+            "isInline": bool(a.get("cid")), **({"contentId": a["cid"]} if a.get("cid") else {}),
+        } for a in adjuntos]
     req = urllib.request.Request(
         f"{GRAPH}/users/{urllib.parse.quote(remitente, safe='@')}/sendMail",
         data=json.dumps(mensaje).encode("utf-8"),
@@ -125,9 +133,9 @@ def probar_conexion():
     return cfg["UsuarioSmtp"]
 
 
-def enviar(asunto, html, destinatarios=None):
+def enviar(asunto, html, destinatarios=None, adjuntos=None):
     cfg, secret = _configuracion()
     destinatarios = destinatarios or cfg.get("Destinatario") or []
     if not destinatarios:
         raise MailError("No hay destinatarios configurados.")
-    _send_mail(cfg, _token(cfg, secret), asunto, html, destinatarios)
+    _send_mail(cfg, _token(cfg, secret), asunto, html, destinatarios, adjuntos)

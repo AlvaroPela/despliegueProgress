@@ -14,6 +14,7 @@ USUARIOS_PATH = os.path.join(BASE_DIR, "usuarios.xlsx")
 
 HISTORIAL_PATH = os.path.join(APP_DIR, "historial.xlsx")
 LOG_DIR = os.path.join(APP_DIR, "logs")
+EVIDENCIAS_DIR = os.path.join(APP_DIR, "evidencias")  # pantallazos de versiones en Escala
 SECRET_KEY_PATH = os.path.join(APP_DIR, "secret.key")
 
 DEFAULTS = {

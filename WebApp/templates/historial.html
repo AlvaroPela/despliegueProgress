@@ -43,7 +43,10 @@
                                 title="Confirmar que se actualizaron las versiones en Escala"><span class="badge-status pendiente">Pendiente</span><i class="bi bi-check2-square ms-1"></i></button>
                             {% else %}<span class="badge-status pendiente">Pendiente</span>{% endif %}
                         {% elif r.Version_Escala == 'Confirmada' %}
-                            <span class="badge-status exito" title="Confirmada por {{ r.Version_Confirmada_Por }} el {{ r.Version_Confirmada_En }}">Confirmada</span>
+                            <button class="btn btn-sm btn-ghost" data-ver-evidencia="{{ r.ID }}" data-caso="{{ r.Caso }}"
+                                data-cantidad="{{ r.Version_Evidencia.split(';') | select | list | length }}"
+                                data-detalle="Confirmada por {{ r.Version_Confirmada_Por }} el {{ r.Version_Confirmada_En }}"
+                                title="Confirmada por {{ r.Version_Confirmada_Por }} el {{ r.Version_Confirmada_En }}"><span class="badge-status exito">Confirmada</span><i class="bi bi-image ms-1"></i></button>
                         {% else %}<span class="text-muted">—</span>{% endif %}
                     </td>
                     <td>

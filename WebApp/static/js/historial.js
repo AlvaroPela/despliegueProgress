@@ -27,6 +27,8 @@
     document.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-log]');
         if (b) verLog(b.dataset.log, b.dataset.titulo);
+        const ev = e.target.closest('[data-ver-evidencia]');
+        if (ev) verEvidencia(ev.dataset.verEvidencia, ev.dataset.caso, +ev.dataset.cantidad, ev.dataset.detalle);
         const v = e.target.closest('[data-confirmar-version]');
         if (v && await confirmarVersionEscala(v.dataset.confirmarVersion, v.dataset.caso, JSON.parse(v.dataset.versiones))) {
             setTimeout(() => location.reload(), 600);
