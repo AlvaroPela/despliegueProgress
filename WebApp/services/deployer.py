@@ -601,8 +601,8 @@ def _html_reporte(run, estado, mensaje=""):
 def _etapa4(run, estado):
     run.progreso(4, "Enviando notificación por correo...")
     try:
-        mailer.enviar(f"[{estado}] Despliegue caso {run.caso} - {run.tipo}", _html_reporte(run, estado))
-        run.log("Correo enviado")
+        destinatarios = mailer.enviar(f"[{estado}] Despliegue caso {run.caso} - {run.tipo}", _html_reporte(run, estado))
+        run.log(f"Correo aceptado por Microsoft Graph para {len(destinatarios)} destinatario(s): {', '.join(destinatarios)}")
     except mailer.MailError as exc:
         run.advertir(f"Correo no enviado: {exc}")
     except Exception as exc:

@@ -3,7 +3,7 @@ import html
 import json
 import logging
 import os
-import threading
+from datetime import datetime
 
 from flask import Blueprint, Response, jsonify, render_template, request, send_from_directory, session
 
@@ -121,8 +121,9 @@ def confirmar_version_escala(reg_id):
         return jsonify({"status": "error", "message": str(exc)}), 400
     log.info("Versiones del caso %s confirmadas en Escala por %s (%d pantallazo(s))",
              registro["Caso"], session["usuario"], len(nombres))
-    threading.Thread(target=_avisar_confirmacion, args=(registro,), daemon=True).start()
-    return jsonify({"status": "success", "por": registro["Version_Confirmada_Por"], "en": registro["Version_Confirmada_En"]})
+    correo = _avisar_confirmacion(registro)  # síncrono: el usuario ve si el correo salió o no
+    return jsonify({"status": "success", "por": registro["Version_Confirmada_Por"], "en": registro["Version_Confirmada_En"],
+                    "correo": correo})
 
 
 @bp.route("/api/despliegues/<int:reg_id>/evidencia/<int:n>")
@@ -158,6 +159,23 @@ def _avisar_confirmacion(registro):
               f"<ul>{filas}</ul>{imagenes}"
               f"<p style='color:#999;font-size:12px'>Mensaje automático del Sistema de Despliegues.</p></div>")
     try:
-        mailer.enviar(f"[Versión confirmada] Despliegue caso {registro['Caso']}", cuerpo, adjuntos=adjuntos)
+        destinatarios = mailer.enviar(f"[Versión confirmada] Despliegue caso {registro['Caso']}", cuerpo, adjuntos=adjuntos)
+        resultado = {"ok": True, "mensaje": f"Correo enviado a {len(destinatarios)} destinatario(s)."}
     except Exception as exc:
         log.warning("No se envió el correo de confirmación de versión: %s", exc)
+        resultado = {"ok": False, "mensaje": f"Versión confirmada, pero el correo no se envió: {exc}"}
+    _anotar_en_log(registro, ("[INFO] " if resultado["ok"] else "[WARN] ") + "Confirmación de versión en Escala por "
+                   f"{registro['Version_Confirmada_Por']}. {resultado['mensaje']}")
+    return resultado
+
+
+def _anotar_en_log(registro, linea):
+    """Agrega una línea al log técnico del despliegue (visible con 'Ver log' en el historial)."""
+    nombre = os.path.basename(str(registro.get("Log_File") or ""))
+    if not nombre:
+        return
+    try:
+        with open(os.path.join(LOG_DIR, nombre), "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now():%H:%M:%S}] {linea}\n")
+    except OSError as exc:
+        log.warning("No se pudo escribir en %s: %s", nombre, exc)

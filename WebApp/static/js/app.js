@@ -142,7 +142,11 @@
                 catch (e) { Swal.showValidationMessage(e.message); return false; }
             },
         });
-        if (r.isConfirmed) toast('Versiones confirmadas en Escala');
+        if (r.isConfirmed) {
+            const c = r.value.correo;
+            if (c && !c.ok) Alerta.fire({ icon: 'warning', title: 'Correo no enviado', text: c.mensaje });
+            else toast('Versiones confirmadas. ' + (c ? c.mensaje : ''));
+        }
         return r.isConfirmed ? r.value : null;
     };
 

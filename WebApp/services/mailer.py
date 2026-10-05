@@ -101,7 +101,7 @@ def _send_mail(cfg, token, asunto, html, destinatarios, adjuntos=None):
             "body": {"contentType": "HTML", "content": html},
             "toRecipients": [{"emailAddress": {"address": d}} for d in destinatarios],
         },
-        "saveToSentItems": False,
+        "saveToSentItems": True,  # copia en "Enviados" del buzón remitente para poder auditar
     }
     if adjuntos:
         mensaje["message"]["attachments"] = [{
@@ -139,3 +139,5 @@ def enviar(asunto, html, destinatarios=None, adjuntos=None):
     if not destinatarios:
         raise MailError("No hay destinatarios configurados.")
     _send_mail(cfg, _token(cfg, secret), asunto, html, destinatarios, adjuntos)
+    log.info("Correo '%s' aceptado por Microsoft Graph para: %s", asunto, ", ".join(destinatarios))
+    return destinatarios
